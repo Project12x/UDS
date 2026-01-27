@@ -66,6 +66,15 @@ public:
     // Get global mix parameter
     float mix = parameters_.getRawParameterValue("mix")->load() / 100.0f;
 
+    // Get master LFO parameters
+    float masterLfoRate =
+        parameters_.getRawParameterValue("masterLfoRate")->load();
+    float masterLfoDepth =
+        parameters_.getRawParameterValue("masterLfoDepth")->load();
+    int masterLfoWaveform = static_cast<int>(
+        parameters_.getRawParameterValue("masterLfoWaveform")->load());
+    delayMatrix_.setMasterLfo(masterLfoRate, masterLfoDepth, masterLfoWaveform);
+
     // Note division multipliers for tempo sync
     static const float noteDivisionMultipliers[] = {
         4.0f,   // 1/1 (whole)
@@ -159,6 +168,9 @@ public:
       if (isMuted || (anySoloed && !isSoloed)) {
         params.level = 0.0f;
       }
+
+      // Pass master LFO modulation value to band
+      params.masterLfoMod = delayMatrix_.getMasterLfoValue();
 
       delayMatrix_.setBandParams(band, params);
     }
@@ -265,6 +277,21 @@ private:
         juce::ParameterID{"mix", 2}, "Mix",
         juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 50.0f,
         juce::AudioParameterFloatAttributes().withLabel("%")));
+
+    // Master LFO (modulates all bands together for chorus-like effects)
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID{"masterLfoRate", 1}, "Master LFO Rate",
+        juce::NormalisableRange<float>(0.01f, 10.0f, 0.01f, 0.5f), 0.5f,
+        juce::AudioParameterFloatAttributes().withLabel("Hz")));
+
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID{"masterLfoDepth", 1}, "Master LFO Depth",
+        juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 0.0f,
+        juce::AudioParameterFloatAttributes().withLabel("%")));
+
+    params.push_back(std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID{"masterLfoWaveform", 1}, "Master LFO Waveform",
+        juce::StringArray{"Sine", "Triangle", "Saw", "Square"}, 0));
 
     // Per-band parameters (8 bands)
     for (int band = 0; band < 8; ++band) {

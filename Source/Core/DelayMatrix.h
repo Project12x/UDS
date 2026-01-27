@@ -311,6 +311,82 @@ private:
   bool prepared_ = false;
   std::array<float, 8> bandLevels_{
       {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}};
+
+  // Master LFO state
+  float masterLfoRate_ = 0.5f;
+  float masterLfoDepth_ = 0.0f;
+  int masterLfoWaveform_ = 0; // 0=Sine, 1=Tri, 2=Saw, 3=Square
+  double masterLfoPhase_ = 0.0;
+
+  /**
+   * @brief Generate master LFO sample
+   */
+  float generateMasterLfoSample() {
+    float value = 0.0f;
+    float phase = static_cast<float>(masterLfoPhase_);
+
+    switch (masterLfoWaveform_) {
+    case 0: // Sine
+      value = std::sin(phase * 2.0f * juce::MathConstants<float>::pi);
+      break;
+    case 1: // Triangle
+      value = 4.0f * std::abs(phase - 0.5f) - 1.0f;
+      break;
+    case 2: // Saw
+      value = 2.0f * phase - 1.0f;
+      break;
+    case 3: // Square
+      value = phase < 0.5f ? 1.0f : -1.0f;
+      break;
+    }
+
+    return value * masterLfoDepth_ / 100.0f;
+  }
+
+  /**
+   * @brief Advance master LFO phase
+   */
+  void advanceMasterLfoPhase(int numSamples) {
+    double phaseIncrement = masterLfoRate_ / sampleRate_;
+    masterLfoPhase_ += phaseIncrement * numSamples;
+    while (masterLfoPhase_ >= 1.0)
+      masterLfoPhase_ -= 1.0;
+  }
+
+public:
+  /**
+   * @brief Set master LFO parameters
+   */
+  void setMasterLfo(float rate, float depth, int waveform) {
+    masterLfoRate_ = rate;
+    masterLfoDepth_ = depth;
+    masterLfoWaveform_ = waveform;
+  }
+
+  /**
+   * @brief Get current master LFO modulation value (for band processing)
+   */
+  float getMasterLfoValue() const {
+    float phase = static_cast<float>(masterLfoPhase_);
+    float value = 0.0f;
+
+    switch (masterLfoWaveform_) {
+    case 0: // Sine
+      value = std::sin(phase * 2.0f * juce::MathConstants<float>::pi);
+      break;
+    case 1: // Triangle
+      value = 4.0f * std::abs(phase - 0.5f) - 1.0f;
+      break;
+    case 2: // Saw
+      value = 2.0f * phase - 1.0f;
+      break;
+    case 3: // Square
+      value = phase < 0.5f ? 1.0f : -1.0f;
+      break;
+    }
+
+    return value * masterLfoDepth_ / 100.0f;
+  }
 };
 
 } // namespace uds

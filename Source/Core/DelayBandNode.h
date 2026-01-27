@@ -3,11 +3,14 @@
 #include "DelayAlgorithm.h"
 #include "FilterSection.h"
 #include "LFOModulator.h"
-#include <algorithm>
-#include <cmath>
+
 #include <juce_audio_basics/juce_audio_basics.h>
 #include <juce_dsp/juce_dsp.h>
+
+#include <algorithm>
+#include <cmath>
 #include <memory>
+
 
 namespace uds {
 
@@ -24,6 +27,7 @@ struct DelayBandParams {
   float lfoRateHz = 1.0f;
   float lfoDepth = 0.0f;
   LFOWaveform lfoWaveform = LFOWaveform::Sine;
+  float masterLfoMod = 0.0f; // Added: master LFO contribution (-1 to +1)
   bool phaseInvert = false;
   bool pingPong = false;
   bool enabled = true;
@@ -87,7 +91,7 @@ public:
     lfo_.reset();
   }
 
-  void setParams(const DelayBandParams &params) {
+  void setParams(const DelayBandParams& params) {
     // Check if algorithm type changed
     if (params.algorithm != params_.algorithm) {
       algorithm_ = createDelayAlgorithm(params.algorithm);
@@ -116,19 +120,19 @@ public:
   /**
    * @brief Get algorithm display name
    */
-  const char *getAlgorithmName() const {
+  const char* getAlgorithmName() const {
     return algorithm_ ? algorithm_->getName() : "Unknown";
   }
 
-  void process(juce::AudioBuffer<float> &buffer, float wetMix = 1.0f) {
+  void process(juce::AudioBuffer<float>& buffer, float wetMix = 1.0f) {
     if (!params_.enabled || !prepared_ || bufferL_.empty())
       return;
 
     const int numSamples = buffer.getNumSamples();
     const int numChannels = buffer.getNumChannels();
 
-    float *leftChannel = buffer.getWritePointer(0);
-    float *rightChannel =
+    float* leftChannel = buffer.getWritePointer(0);
+    float* rightChannel =
         numChannels > 1 ? buffer.getWritePointer(1) : leftChannel;
 
     const int bufferSize = static_cast<int>(bufferL_.size());
@@ -136,6 +140,10 @@ public:
     for (int i = 0; i < numSamples; ++i) {
       // Get LFO-modulated delay time
       float modulatedTimeMs = params_.delayTimeMs;
+
+      // Add master LFO contribution (up to 10ms at full depth)
+      float masterMod = params_.masterLfoMod * 10.0f;
+
       if (params_.lfoDepth > 0.0f) {
         // LFO modulation adds up to 10ms variation at full depth
         modulatedTimeMs = lfo_.getModulatedTime(params_.delayTimeMs, 10.0f);
@@ -143,6 +151,10 @@ public:
       } else {
         lfo_.tick(); // Still advance phase even if depth is 0
       }
+
+      // Combine master LFO and per-band LFO
+      modulatedTimeMs += masterMod;
+      modulatedTimeMs = std::max(1.0f, modulatedTimeMs); // Ensure positive
 
       // Calculate delay in samples (with interpolation for smooth modulation)
       float delaySamplesF =
