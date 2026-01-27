@@ -6,10 +6,13 @@
 #include "NodeEditorCanvas.h"
 #include "PresetBrowserPanel.h"
 #include "StandaloneMetronome.h"
-#include <array>
+
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_gui_basics/juce_gui_basics.h>
+
+#include <array>
 #include <memory>
+
 
 namespace uds {
 
@@ -18,9 +21,10 @@ namespace uds {
  */
 class MainComponent : public juce::Component {
 public:
-  MainComponent(juce::AudioProcessorValueTreeState &apvts,
-                RoutingGraph &routingGraph, PresetManager &presetManager)
-      : apvts_(apvts), routingGraph_(routingGraph),
+  MainComponent(juce::AudioProcessorValueTreeState& apvts,
+                RoutingGraph& routingGraph, PresetManager& presetManager)
+      : apvts_(apvts),
+        routingGraph_(routingGraph),
         presetBrowser_(presetManager) {
     // Enable keyboard focus for shortcuts
     setWantsKeyboardFocus(true);
@@ -52,6 +56,59 @@ public:
     mixLabel_.setJustificationType(juce::Justification::centred);
     mixLabel_.setColour(juce::Label::textColourId, juce::Colours::white);
     addAndMakeVisible(mixLabel_);
+
+    // Master LFO Rate slider
+    masterLfoRateSlider_.setSliderStyle(
+        juce::Slider::RotaryHorizontalVerticalDrag);
+    masterLfoRateSlider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 50,
+                                         16);
+    masterLfoRateSlider_.setColour(juce::Slider::rotarySliderFillColourId,
+                                   juce::Colour(0xffe76f51));
+    addAndMakeVisible(masterLfoRateSlider_);
+    masterLfoRateAttachment_ =
+        std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+            apvts, "masterLfoRate", masterLfoRateSlider_);
+
+    masterLfoRateLabel_.setText("M-Rate", juce::dontSendNotification);
+    masterLfoRateLabel_.setJustificationType(juce::Justification::centred);
+    masterLfoRateLabel_.setColour(juce::Label::textColourId,
+                                  juce::Colours::white);
+    masterLfoRateLabel_.setFont(juce::FontOptions(11.0f));
+    addAndMakeVisible(masterLfoRateLabel_);
+
+    // Master LFO Depth slider
+    masterLfoDepthSlider_.setSliderStyle(
+        juce::Slider::RotaryHorizontalVerticalDrag);
+    masterLfoDepthSlider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 50,
+                                          16);
+    masterLfoDepthSlider_.setColour(juce::Slider::rotarySliderFillColourId,
+                                    juce::Colour(0xffe76f51));
+    addAndMakeVisible(masterLfoDepthSlider_);
+    masterLfoDepthAttachment_ =
+        std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+            apvts, "masterLfoDepth", masterLfoDepthSlider_);
+
+    masterLfoDepthLabel_.setText("M-Depth", juce::dontSendNotification);
+    masterLfoDepthLabel_.setJustificationType(juce::Justification::centred);
+    masterLfoDepthLabel_.setColour(juce::Label::textColourId,
+                                   juce::Colours::white);
+    masterLfoDepthLabel_.setFont(juce::FontOptions(11.0f));
+    addAndMakeVisible(masterLfoDepthLabel_);
+
+    // Master LFO Waveform combo
+    masterLfoWaveformCombo_.addItemList({"Sine", "Triangle", "Saw", "Square"},
+                                        1);
+    addAndMakeVisible(masterLfoWaveformCombo_);
+    masterLfoWaveformAttachment_ = std::make_unique<
+        juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
+        apvts, "masterLfoWaveform", masterLfoWaveformCombo_);
+
+    masterLfoWaveformLabel_.setText("M-Wave", juce::dontSendNotification);
+    masterLfoWaveformLabel_.setJustificationType(juce::Justification::centred);
+    masterLfoWaveformLabel_.setColour(juce::Label::textColourId,
+                                      juce::Colours::white);
+    masterLfoWaveformLabel_.setFont(juce::FontOptions(11.0f));
+    addAndMakeVisible(masterLfoWaveformLabel_);
 
     // Tab buttons
     bandsTabButton_.setButtonText("Bands");
@@ -129,9 +186,22 @@ public:
     auto headerRow = bounds.removeFromTop(50);
 
     // Mix control on right
-    auto mixArea = headerRow.removeFromRight(80);
-    mixLabel_.setBounds(mixArea.removeFromTop(18));
+    auto mixArea = headerRow.removeFromRight(70);
+    mixLabel_.setBounds(mixArea.removeFromTop(16));
     mixSlider_.setBounds(mixArea);
+
+    // Master LFO controls (next to mix)
+    auto masterLfoWaveArea = headerRow.removeFromRight(70);
+    masterLfoWaveformLabel_.setBounds(masterLfoWaveArea.removeFromTop(16));
+    masterLfoWaveformCombo_.setBounds(masterLfoWaveArea.reduced(2, 8));
+
+    auto masterLfoDepthArea = headerRow.removeFromRight(60);
+    masterLfoDepthLabel_.setBounds(masterLfoDepthArea.removeFromTop(16));
+    masterLfoDepthSlider_.setBounds(masterLfoDepthArea);
+
+    auto masterLfoRateArea = headerRow.removeFromRight(60);
+    masterLfoRateLabel_.setBounds(masterLfoRateArea.removeFromTop(16));
+    masterLfoRateSlider_.setBounds(masterLfoRateArea);
 
     // Tab buttons on left
     auto tabArea = headerRow.removeFromLeft(200);
@@ -180,14 +250,14 @@ public:
     }
   }
 
-  void paint(juce::Graphics &g) override {
+  void paint(juce::Graphics& g) override {
     g.fillAll(juce::Colour(0xff1a1a1a));
   }
 
   /**
    * @brief Handle keyboard shortcuts for undo/redo routing changes.
    */
-  bool keyPressed(const juce::KeyPress &key) override {
+  bool keyPressed(const juce::KeyPress& key) override {
     // Ctrl+Z = Undo (when in routing view)
     if (key.getModifiers().isCommandDown() && key.getKeyCode() == 'Z') {
       if (key.getModifiers().isShiftDown()) {
@@ -208,13 +278,13 @@ public:
   }
 
   // Access routing graph for processor sync
-  RoutingGraph &getRoutingGraph() { return nodeEditor_.getRoutingGraph(); }
+  RoutingGraph& getRoutingGraph() { return nodeEditor_.getRoutingGraph(); }
 
 private:
   void showBandsView() {
     showRoutingView_ = false;
     nodeEditor_.setVisible(false);
-    for (auto &panel : bandPanels_) {
+    for (auto& panel : bandPanels_) {
       panel->setVisible(true);
     }
     updateTabButtonColors();
@@ -224,7 +294,7 @@ private:
   void showRoutingView() {
     showRoutingView_ = true;
     nodeEditor_.setVisible(true);
-    for (auto &panel : bandPanels_) {
+    for (auto& panel : bandPanels_) {
       panel->setVisible(false);
     }
     updateTabButtonColors();
@@ -253,12 +323,12 @@ private:
    */
   void syncRoutingToProcessor() {
     // Get connections from the node editor canvas
-    const auto &uiConnections = nodeEditor_.getRoutingGraph().getConnections();
+    const auto& uiConnections = nodeEditor_.getRoutingGraph().getConnections();
 
     // Clear and rebuild processor's routing graph
     routingGraph_.clearAllConnections();
 
-    for (const auto &conn : uiConnections) {
+    for (const auto& conn : uiConnections) {
       routingGraph_.connect(conn.sourceId, conn.destId);
     }
   }
@@ -268,13 +338,13 @@ private:
    */
   void syncRoutingFromProcessor() {
     // Get connections from processor
-    const auto &procConnections = routingGraph_.getConnections();
+    const auto& procConnections = routingGraph_.getConnections();
 
     // Update node editor's routing graph
-    auto &uiRouting = nodeEditor_.getRoutingGraph();
+    auto& uiRouting = nodeEditor_.getRoutingGraph();
     uiRouting.clearAllConnections();
 
-    for (const auto &conn : procConnections) {
+    for (const auto& conn : procConnections) {
       uiRouting.connect(conn.sourceId, conn.destId);
     }
 
@@ -282,14 +352,28 @@ private:
     nodeEditor_.rebuildCablesFromRouting();
   }
 
-  juce::AudioProcessorValueTreeState &apvts_;
-  RoutingGraph &routingGraph_;
+  juce::AudioProcessorValueTreeState& apvts_;
+  RoutingGraph& routingGraph_;
 
   juce::Label titleLabel_;
   juce::Slider mixSlider_;
   juce::Label mixLabel_;
   std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>
       mixAttachment_;
+
+  // Master LFO controls
+  juce::Slider masterLfoRateSlider_;
+  juce::Slider masterLfoDepthSlider_;
+  juce::ComboBox masterLfoWaveformCombo_;
+  juce::Label masterLfoRateLabel_;
+  juce::Label masterLfoDepthLabel_;
+  juce::Label masterLfoWaveformLabel_;
+  std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>
+      masterLfoRateAttachment_;
+  std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>
+      masterLfoDepthAttachment_;
+  std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment>
+      masterLfoWaveformAttachment_;
 
   juce::TextButton bandsTabButton_;
   juce::TextButton routingTabButton_;
@@ -307,10 +391,10 @@ private:
 
 public:
   // Access metronome for BPM and click generation
-  StandaloneMetronome &getMetronome() { return metronome_; }
+  StandaloneMetronome& getMetronome() { return metronome_; }
 
   // Update band signal levels for LED activity indicators
-  void updateBandLevels(const std::array<float, 8> &levels) {
+  void updateBandLevels(const std::array<float, 8>& levels) {
     for (size_t i = 0; i < 8; ++i) {
       if (bandPanels_[i])
         bandPanels_[i]->setSignalLevel(levels[i]);
