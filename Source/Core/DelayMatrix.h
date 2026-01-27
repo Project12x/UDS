@@ -4,11 +4,14 @@
 #include "DelayBandNode.h"
 #include "RoutingGraph.h"
 #include "SafetyLimiter.h"
-#include <array>
+
 #include <juce_audio_basics/juce_audio_basics.h>
+
+#include <array>
 #include <memory>
 #include <unordered_map>
 #include <vector>
+
 
 namespace uds {
 
@@ -47,14 +50,14 @@ public:
   }
 
   void reset() {
-    for (auto &band : bands_) {
+    for (auto& band : bands_) {
       if (band)
         band->reset();
     }
     limiter_.reset();
   }
 
-  void setBandParams(int bandIndex, const DelayBandParams &params) {
+  void setBandParams(int bandIndex, const DelayBandParams& params) {
     if (bandIndex >= 0 && bandIndex < static_cast<int>(bands_.size())) {
       if (bands_[static_cast<size_t>(bandIndex)])
         bands_[static_cast<size_t>(bandIndex)]->setParams(params);
@@ -64,13 +67,13 @@ public:
   /**
    * @brief Get the routing graph for external manipulation
    */
-  RoutingGraph &getRoutingGraph() { return routingGraph_; }
-  const RoutingGraph &getRoutingGraph() const { return routingGraph_; }
+  RoutingGraph& getRoutingGraph() { return routingGraph_; }
+  const RoutingGraph& getRoutingGraph() const { return routingGraph_; }
 
   /**
    * @brief Process audio through the delay matrix using routing graph
    */
-  void process(juce::AudioBuffer<float> &buffer, float globalMix) {
+  void process(juce::AudioBuffer<float>& buffer, float globalMix) {
     if (!prepared_ || bands_.empty())
       return;
 
@@ -80,7 +83,7 @@ public:
       return;
 
     // Clear all node buffers
-    for (auto &[id, buf] : nodeBuffers_) {
+    for (auto& [id, buf] : nodeBuffers_) {
       buf.clear();
     }
 
@@ -94,7 +97,7 @@ public:
     }
 
     // Process nodes in topological order
-    const auto &order = routingGraph_.getProcessingOrder();
+    const auto& order = routingGraph_.getProcessingOrder();
 
     for (int nodeId : order) {
       if (nodeId == static_cast<int>(NodeId::Input)) {
@@ -119,7 +122,7 @@ public:
       if (bandIndex < 0 || bandIndex >= static_cast<int>(bands_.size()))
         continue;
 
-      auto &band = bands_[static_cast<size_t>(bandIndex)];
+      auto& band = bands_[static_cast<size_t>(bandIndex)];
       if (!band)
         continue;
 
@@ -144,7 +147,7 @@ public:
     }
 
     // Get output node result (this is the wet signal)
-    auto &wetBuffer = nodeBuffers_[static_cast<int>(NodeId::Output)];
+    auto& wetBuffer = nodeBuffers_[static_cast<int>(NodeId::Output)];
 
     // Apply safety limiter to wet signal
     if (numChannels >= 2) {
@@ -154,9 +157,9 @@ public:
 
     // Final mix: output = dry + wet * globalMix
     for (int ch = 0; ch < numChannels; ++ch) {
-      const float *dry = dryBuffer.getReadPointer(ch);
-      const float *wet = wetBuffer.getReadPointer(ch);
-      float *out = buffer.getWritePointer(ch);
+      const float* dry = dryBuffer.getReadPointer(ch);
+      const float* wet = wetBuffer.getReadPointer(ch);
+      float* out = buffer.getWritePointer(ch);
 
       for (int s = 0; s < numSamples; ++s) {
         out[s] = dry[s] + wet[s] * globalMix;
@@ -170,8 +173,8 @@ public:
    * This allows the processor to own the routing graph while DelayMatrix
    * handles the DSP.
    */
-  void processWithRouting(juce::AudioBuffer<float> &buffer, float globalMix,
-                          const RoutingGraph &externalRouting) {
+  void processWithRouting(juce::AudioBuffer<float>& buffer, float globalMix,
+                          const RoutingGraph& externalRouting) {
     if (!prepared_ || bands_.empty())
       return;
 
@@ -181,7 +184,7 @@ public:
       return;
 
     // Clear all node buffers
-    for (auto &[id, buf] : nodeBuffers_) {
+    for (auto& [id, buf] : nodeBuffers_) {
       buf.clear();
     }
 
@@ -195,7 +198,7 @@ public:
     }
 
     // Process nodes in topological order from external routing
-    const auto &order = externalRouting.getProcessingOrder();
+    const auto& order = externalRouting.getProcessingOrder();
 
     for (int nodeId : order) {
       if (nodeId == static_cast<int>(NodeId::Input)) {
@@ -218,7 +221,7 @@ public:
       if (bandIndex < 0 || bandIndex >= static_cast<int>(bands_.size()))
         continue;
 
-      auto &band = bands_[static_cast<size_t>(bandIndex)];
+      auto& band = bands_[static_cast<size_t>(bandIndex)];
       if (!band)
         continue;
 
@@ -253,7 +256,7 @@ public:
     }
 
     // Get output node result
-    auto &wetBuffer = nodeBuffers_[static_cast<int>(NodeId::Output)];
+    auto& wetBuffer = nodeBuffers_[static_cast<int>(NodeId::Output)];
 
     // Apply safety limiter
     if (numChannels >= 2) {
@@ -263,9 +266,9 @@ public:
 
     // Final mix
     for (int ch = 0; ch < numChannels; ++ch) {
-      const float *dry = dryBuffer.getReadPointer(ch);
-      const float *wet = wetBuffer.getReadPointer(ch);
-      float *out = buffer.getWritePointer(ch);
+      const float* dry = dryBuffer.getReadPointer(ch);
+      const float* wet = wetBuffer.getReadPointer(ch);
+      float* out = buffer.getWritePointer(ch);
 
       for (int s = 0; s < numSamples; ++s) {
         out[s] = dry[s] + wet[s] * globalMix;
@@ -279,7 +282,7 @@ public:
     return "{}";
   }
 
-  void setRoutingState(const juce::String & /*state*/) {
+  void setRoutingState(const juce::String& /*state*/) {
     // TODO: Deserialize routing graph connections
   }
 
@@ -289,6 +292,13 @@ public:
       return bandLevels_[static_cast<size_t>(bandIndex)];
     return 0.0f;
   }
+
+  // Safety limiter access for UI
+  bool isSafetyMuted() const { return limiter_.isPermanentlyMuted(); }
+  SafetyLimiter::MuteReason getSafetyMuteReason() const {
+    return limiter_.getMuteReason();
+  }
+  void unlockSafetyMute() { limiter_.unlockPermanentMute(); }
 
 private:
   std::vector<std::unique_ptr<DelayBandNode>> bands_;

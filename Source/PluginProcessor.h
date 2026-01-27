@@ -2,8 +2,11 @@
 
 #include "Core/DelayMatrix.h"
 #include "Core/RoutingGraph.h"
-#include <array>
+
 #include <juce_audio_processors/juce_audio_processors.h>
+
+#include <array>
+
 
 /**
  * @brief UDS - Universal Delay System
@@ -31,7 +34,7 @@ public:
 
   void releaseResources() override { delayMatrix_.reset(); }
 
-  bool isBusesLayoutSupported(const BusesLayout &layouts) const override {
+  bool isBusesLayoutSupported(const BusesLayout& layouts) const override {
     if (layouts.getMainOutputChannelSet() != juce::AudioChannelSet::stereo() &&
         layouts.getMainOutputChannelSet() != juce::AudioChannelSet::mono())
       return false;
@@ -40,8 +43,8 @@ public:
     return true;
   }
 
-  void processBlock(juce::AudioBuffer<float> &buffer,
-                    juce::MidiBuffer & /*midiMessages*/) override {
+  void processBlock(juce::AudioBuffer<float>& buffer,
+                    juce::MidiBuffer& /*midiMessages*/) override {
     juce::ScopedNoDenormals noDenormals;
 
     auto totalNumInputChannels = getTotalNumInputChannels();
@@ -52,7 +55,7 @@ public:
 
     // Get BPM from host, or use internal metronome BPM for standalone
     double bpm = internalBpm_.load(); // Default to internal metronome BPM
-    if (auto *pHead = getPlayHead()) {
+    if (auto* pHead = getPlayHead()) {
       if (auto pos = pHead->getPosition()) {
         if (pos->getBpm().hasValue()) {
           bpm = *pos->getBpm();
@@ -169,7 +172,7 @@ public:
     }
   }
 
-  juce::AudioProcessorEditor *createEditor() override;
+  juce::AudioProcessorEditor* createEditor() override;
   bool hasEditor() const override { return true; }
 
   const juce::String getName() const override { return JucePlugin_Name; }
@@ -182,9 +185,9 @@ public:
   int getCurrentProgram() override { return 0; }
   void setCurrentProgram(int) override {}
   const juce::String getProgramName(int) override { return {}; }
-  void changeProgramName(int, const juce::String &) override {}
+  void changeProgramName(int, const juce::String&) override {}
 
-  void getStateInformation(juce::MemoryBlock &destData) override {
+  void getStateInformation(juce::MemoryBlock& destData) override {
     // Create root XML element
     auto xml = std::make_unique<juce::XmlElement>("UDSState");
 
@@ -198,7 +201,7 @@ public:
     copyXmlToBinary(*xml, destData);
   }
 
-  void setStateInformation(const void *data, int sizeInBytes) override {
+  void setStateInformation(const void* data, int sizeInBytes) override {
     std::unique_ptr<juce::XmlElement> xmlState(
         getXmlFromBinary(data, sizeInBytes));
 
@@ -208,11 +211,11 @@ public:
     // Handle both old format (just APVTS) and new format (UDSState wrapper)
     if (xmlState->hasTagName("UDSState")) {
       // New format: extract APVTS and routing separately
-      if (auto *apvtsXml =
+      if (auto* apvtsXml =
               xmlState->getChildByName(parameters_.state.getType())) {
         parameters_.replaceState(juce::ValueTree::fromXml(*apvtsXml));
       }
-      if (auto *routingXml = xmlState->getChildByName("Routing")) {
+      if (auto* routingXml = xmlState->getChildByName("Routing")) {
         routingGraph_.fromXml(routingXml);
       }
     } else if (xmlState->hasTagName(parameters_.state.getType())) {
@@ -221,11 +224,11 @@ public:
     }
   }
 
-  juce::AudioProcessorValueTreeState &getParameters() { return parameters_; }
+  juce::AudioProcessorValueTreeState& getParameters() { return parameters_; }
 
   // Access to routing graph for editor
-  uds::RoutingGraph &getRoutingGraph() { return routingGraph_; }
-  const uds::RoutingGraph &getRoutingGraph() const { return routingGraph_; }
+  uds::RoutingGraph& getRoutingGraph() { return routingGraph_; }
+  const uds::RoutingGraph& getRoutingGraph() const { return routingGraph_; }
 
   // Internal metronome BPM for standalone mode
   void setInternalBpm(double bpm) { internalBpm_.store(bpm); }
@@ -237,6 +240,13 @@ public:
       return bandLevels_[band].load();
     return 0.0f;
   }
+
+  // Safety mute status for UI
+  bool isSafetyMuted() const { return delayMatrix_.isSafetyMuted(); }
+  int getSafetyMuteReason() const {
+    return static_cast<int>(delayMatrix_.getSafetyMuteReason());
+  }
+  void unlockSafetyMute() { delayMatrix_.unlockSafetyMute(); }
 
 private:
   juce::AudioProcessorValueTreeState parameters_;

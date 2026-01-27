@@ -3,8 +3,12 @@
 #include "Core/PresetManager.h"
 #include "PluginProcessor.h"
 #include "UI/MainComponent.h"
+#include "UI/SafetyMuteOverlay.h"
+
 #include <juce_audio_processors/juce_audio_processors.h>
+
 #include <memory>
+
 
 /**
  * @brief UDS Plugin Editor
@@ -12,12 +16,21 @@
 class UDSAudioProcessorEditor : public juce::AudioProcessorEditor,
                                 private juce::Timer {
 public:
-  explicit UDSAudioProcessorEditor(UDSAudioProcessor &p)
-      : AudioProcessorEditor(&p), processorRef_(p),
+  explicit UDSAudioProcessorEditor(UDSAudioProcessor& p)
+      : AudioProcessorEditor(&p),
+        processorRef_(p),
         presetManager_(std::make_unique<uds::PresetManager>(p)) {
     mainComponent_ = std::make_unique<uds::MainComponent>(
         p.getParameters(), p.getRoutingGraph(), *presetManager_);
     addAndMakeVisible(*mainComponent_);
+
+    // Safety mute overlay (hidden by default)
+    safetyOverlay_ = std::make_unique<uds::SafetyMuteOverlay>();
+    safetyOverlay_->onUnlock = [this] {
+      processorRef_.unlockSafetyMute();
+      safetyOverlay_->hide();
+    };
+    addAndMakeVisible(*safetyOverlay_);
 
     setSize(1000, 500);
     setResizable(true, true);
@@ -29,13 +42,17 @@ public:
 
   ~UDSAudioProcessorEditor() override { stopTimer(); }
 
-  void paint(juce::Graphics &g) override {
+  void paint(juce::Graphics& g) override {
     g.fillAll(juce::Colour(0xff1a1a1a));
   }
 
   void resized() override {
     if (mainComponent_)
       mainComponent_->setBounds(getLocalBounds());
+
+    // Overlay covers entire editor
+    if (safetyOverlay_)
+      safetyOverlay_->setBounds(getLocalBounds());
   }
 
 private:
@@ -52,11 +69,25 @@ private:
       }
       mainComponent_->updateBandLevels(levels);
     }
+
+    // Check for safety mute status
+    if (safetyOverlay_) {
+      if (processorRef_.isSafetyMuted()) {
+        if (!safetyOverlay_->isVisible()) {
+          safetyOverlay_->show(processorRef_.getSafetyMuteReason());
+        }
+      } else {
+        if (safetyOverlay_->isVisible()) {
+          safetyOverlay_->hide();
+        }
+      }
+    }
   }
 
-  UDSAudioProcessor &processorRef_;
+  UDSAudioProcessor& processorRef_;
   std::unique_ptr<uds::PresetManager> presetManager_;
   std::unique_ptr<uds::MainComponent> mainComponent_;
+  std::unique_ptr<uds::SafetyMuteOverlay> safetyOverlay_;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(UDSAudioProcessorEditor)
 };
