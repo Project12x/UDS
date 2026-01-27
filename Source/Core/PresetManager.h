@@ -162,6 +162,8 @@ public:
     auto* routingXml = xml->getChildByName("Routing");
     if (routingXml != nullptr) {
       processor_.getRoutingGraph().fromXml(routingXml);
+      if (onRoutingChanged)
+        onRoutingChanged();
     }
 
     currentPresetIndex_ = index;
@@ -274,6 +276,9 @@ public:
 
   // Callback when preset changes
   std::function<void()> onPresetChanged;
+
+  // Callback when routing changes (for UI sync)
+  std::function<void()> onRoutingChanged;
 
   /**
    * @brief Helper struct for band configuration
@@ -552,10 +557,24 @@ public:
 
       // Create routing based on effect type
       std::vector<std::pair<int, int>> routing;
+      // Determine routing from _delayStructure.type
+      // Values: "8 Independent Bands (Parallel)", "8 Independent Bands
+      // (Series)",
+      //         "8 Multi-Tap (1 Band)", "4 Bands x 2 Taps", etc.
+      bool isSeriesRouting = false;
+      if (params.contains("_delayStructure") &&
+          params["_delayStructure"].is_object()) {
+        auto& delayStruct = params["_delayStructure"];
+        if (delayStruct.contains("type") && delayStruct["type"].is_string()) {
+          std::string structType = delayStruct["type"].get<std::string>();
+          // Check if the type contains "Series"
+          isSeriesRouting = (structType.find("Series") != std::string::npos);
+        }
+      }
 
-      if (effectId == 5) {
-        // Multi-Tap = Series/Cascade routing: Input → B1 → B2 → ... → B8 →
-        // Output Find first and last enabled bands
+      if (isSeriesRouting) {
+        // Series/Cascade routing: Input → B1 → B2 → ... → B8 → Output
+        // Find first and last enabled bands
         int firstEnabled = -1;
         int lastEnabled = -1;
         for (int i = 0; i < 8; ++i) {
@@ -583,7 +602,7 @@ public:
           routing.push_back({lastEnabled + 1, 9});
         }
       } else {
-        // Parallel routing (id=1 and default): Input → All Bands → Output
+        // Parallel routing (default): Input → All Bands → Output
         for (int i = 0; i < 8; ++i) {
           if (bands[static_cast<size_t>(i)].enabled) {
             routing.push_back({0, i + 1}); // Input → Band

@@ -47,12 +47,12 @@
 - [x] Per-band phase inversion toggle
 - [x] Per-band ping-pong delay toggle
 
-### 3.3 Preset System
+### 3.3 Preset System ✅
 
 - [x] State serialization for routing
 - [x] XML preset format
 - [x] Basic preset browser
-- [ ] Factory preset bank (8-12 presets)
+- [ ] Factory preset curation (Verify routing & MagicStomp accuracy)
 - [ ] Preset browser with tags
 - [ ] A/B comparison
 
@@ -62,6 +62,12 @@
 - [x] LookAndFeel hover effects
 - [x] Algorithm selector dropdown
 - [x] Solo/mute buttons per band
+
+### 3.6 I/O Configurations
+
+- [ ] Mono In / Mono Out
+- [ ] Mono In / Stereo Out (Stereo Expander)
+- [ ] Stereo In / Stereo Out
 - [x] Signal activity indicator
 - [x] Tempo sync modes
 - [x] Undo/redo for routing changes

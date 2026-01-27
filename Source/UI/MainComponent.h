@@ -25,7 +25,10 @@ public:
                 RoutingGraph& routingGraph, PresetManager& presetManager)
       : apvts_(apvts),
         routingGraph_(routingGraph),
+        presetManager_(presetManager),
         presetBrowser_(presetManager) {
+    // Sync UI when routing changes
+    presetManager_.onRoutingChanged = [this] { syncRoutingFromProcessor(); };
     // Enable keyboard focus for shortcuts
     setWantsKeyboardFocus(true);
 
@@ -211,7 +214,7 @@ public:
     showBandsView();
   }
 
-  ~MainComponent() override = default;
+  ~MainComponent() override { presetManager_.onRoutingChanged = nullptr; }
 
   void resized() override {
     auto bounds = getLocalBounds().reduced(10);
@@ -398,6 +401,7 @@ private:
 
   juce::AudioProcessorValueTreeState& apvts_;
   RoutingGraph& routingGraph_;
+  PresetManager& presetManager_;
 
   juce::Label titleLabel_;
   juce::Slider mixSlider_;
