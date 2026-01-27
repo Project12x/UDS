@@ -2,7 +2,9 @@
 
 #include "../Core/PresetManager.h"
 #include "Typography.h"
+
 #include <juce_gui_basics/juce_gui_basics.h>
+
 
 namespace uds {
 
@@ -13,7 +15,7 @@ namespace uds {
  */
 class PresetBrowserPanel : public juce::Component {
 public:
-  PresetBrowserPanel(PresetManager &presetManager)
+  PresetBrowserPanel(PresetManager& presetManager)
       : presetManager_(presetManager) {
     // Previous button
     prevButton_.setButtonText("<");
@@ -90,7 +92,7 @@ public:
     presetNameLabel_.setBounds(bounds);
   }
 
-  void paint(juce::Graphics &g) override {
+  void paint(juce::Graphics& g) override {
     g.setColour(juce::Colour(0xff1a1a1e));
     g.fillRoundedRectangle(getLocalBounds().toFloat(), 6.0f);
 
@@ -110,7 +112,7 @@ private:
   }
 
   void showSaveDialog() {
-    auto *alertWindow = new juce::AlertWindow(
+    auto* alertWindow = new juce::AlertWindow(
         "Save Preset",
         "Enter a name for the preset:", juce::MessageBoxIconType::NoIcon);
 
@@ -136,7 +138,7 @@ private:
     juce::PopupMenu menu;
 
     // Add presets
-    const auto &presets = presetManager_.getPresets();
+    const auto& presets = presetManager_.getPresets();
     if (!presets.empty()) {
       for (size_t i = 0; i < presets.size(); ++i) {
         menu.addItem(static_cast<int>(i + 1), presets[i].name,
@@ -150,6 +152,8 @@ private:
     // Utility actions
     menu.addItem(-1, "Open Preset Folder...");
     menu.addItem(-2, "Refresh Presets");
+    menu.addSeparator();
+    menu.addItem(-3, "Import MagicStomp JSON...");
 
     menu.showMenuAsync(
         juce::PopupMenu::Options().withTargetComponent(&menuButton_),
@@ -160,17 +164,49 @@ private:
             presetManager_.showPresetFolder();
           } else if (result == -2) {
             presetManager_.scanPresets();
+          } else if (result == -3) {
+            showImportDialog();
           }
         });
   }
 
-  PresetManager &presetManager_;
+  void showImportDialog() {
+    fileChooser_ = std::make_unique<juce::FileChooser>(
+        "Select MagicStomp JSON Export",
+        juce::File::getSpecialLocation(juce::File::userDesktopDirectory),
+        "*.json");
+
+    fileChooser_->launchAsync(
+        juce::FileBrowserComponent::openMode |
+            juce::FileBrowserComponent::canSelectFiles,
+        [this](const juce::FileChooser& fc) {
+          auto results = fc.getResults();
+          if (results.isEmpty())
+            return;
+
+          int imported = presetManager_.importFromMagicStompJson(results[0]);
+
+          juce::String msg;
+          if (imported > 0) {
+            msg =
+                "Successfully imported " + juce::String(imported) + " presets.";
+          } else {
+            msg = "No compatible delay presets found in file.";
+          }
+
+          juce::AlertWindow::showMessageBoxAsync(
+              juce::MessageBoxIconType::InfoIcon, "Import Complete", msg);
+        });
+  }
+
+  PresetManager& presetManager_;
 
   juce::TextButton prevButton_;
   juce::TextButton nextButton_;
   juce::Label presetNameLabel_;
   juce::TextButton saveButton_;
   juce::TextButton menuButton_;
+  std::unique_ptr<juce::FileChooser> fileChooser_;
 };
 
 } // namespace uds

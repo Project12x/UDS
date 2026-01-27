@@ -153,3 +153,12 @@ if(MSVC)
 else()
     target_compile_options(UDS PRIVATE -Wall -Wextra -Wpedantic)
 endif()
+
+# ==============================================================================
+# Tests (Optional)
+# ==============================================================================
+option(UDS_BUILD_TESTS "Build the DSP test suite" OFF)
+if(UDS_BUILD_TESTS)
+    add_subdirectory(Tests)
+endif()
+

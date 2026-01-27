@@ -57,6 +57,40 @@ public:
     mixLabel_.setColour(juce::Label::textColourId, juce::Colours::white);
     addAndMakeVisible(mixLabel_);
 
+    // Direct Level slider
+    dryLevelSlider_.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
+    dryLevelSlider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 50, 16);
+    dryLevelSlider_.setColour(juce::Slider::rotarySliderFillColourId,
+                              juce::Colour(0xff2ec4b6)); // Teal
+    dryLevelSlider_.setDoubleClickReturnValue(true, 100.0);
+    addAndMakeVisible(dryLevelSlider_);
+    dryLevelAttachment_ =
+        std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+            apvts, "dryLevel", dryLevelSlider_);
+
+    dryLevelLabel_.setText("Direct", juce::dontSendNotification);
+    dryLevelLabel_.setJustificationType(juce::Justification::centred);
+    dryLevelLabel_.setColour(juce::Label::textColourId, juce::Colours::white);
+    dryLevelLabel_.setFont(juce::FontOptions(11.0f));
+    addAndMakeVisible(dryLevelLabel_);
+
+    // Direct Pan slider
+    dryPanSlider_.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
+    dryPanSlider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 50, 16);
+    dryPanSlider_.setColour(juce::Slider::rotarySliderFillColourId,
+                            juce::Colour(0xff2ec4b6)); // Teal
+    dryPanSlider_.setDoubleClickReturnValue(true, 0.0);
+    addAndMakeVisible(dryPanSlider_);
+    dryPanAttachment_ =
+        std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+            apvts, "dryPan", dryPanSlider_);
+
+    dryPanLabel_.setText("D-Pan", juce::dontSendNotification);
+    dryPanLabel_.setJustificationType(juce::Justification::centred);
+    dryPanLabel_.setColour(juce::Label::textColourId, juce::Colours::white);
+    dryPanLabel_.setFont(juce::FontOptions(11.0f));
+    addAndMakeVisible(dryPanLabel_);
+
     // Master LFO Rate slider
     masterLfoRateSlider_.setSliderStyle(
         juce::Slider::RotaryHorizontalVerticalDrag);
@@ -189,6 +223,16 @@ public:
     auto mixArea = headerRow.removeFromRight(70);
     mixLabel_.setBounds(mixArea.removeFromTop(16));
     mixSlider_.setBounds(mixArea);
+
+    // Direct Level control (next to mix)
+    auto dryLevelArea = headerRow.removeFromRight(60);
+    dryLevelLabel_.setBounds(dryLevelArea.removeFromTop(16));
+    dryLevelSlider_.setBounds(dryLevelArea);
+
+    // Direct Pan control (next to dry level)
+    auto dryPanArea = headerRow.removeFromRight(60);
+    dryPanLabel_.setBounds(dryPanArea.removeFromTop(16));
+    dryPanSlider_.setBounds(dryPanArea);
 
     // Master LFO controls (next to mix)
     auto masterLfoWaveArea = headerRow.removeFromRight(70);
@@ -360,6 +404,16 @@ private:
   juce::Label mixLabel_;
   std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>
       mixAttachment_;
+
+  // Direct signal controls
+  juce::Slider dryLevelSlider_;
+  juce::Slider dryPanSlider_;
+  juce::Label dryLevelLabel_;
+  juce::Label dryPanLabel_;
+  std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>
+      dryLevelAttachment_;
+  std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>
+      dryPanAttachment_;
 
   // Master LFO controls
   juce::Slider masterLfoRateSlider_;

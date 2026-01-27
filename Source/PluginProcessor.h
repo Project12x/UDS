@@ -65,6 +65,9 @@ public:
 
     // Get global mix parameter
     float mix = parameters_.getRawParameterValue("mix")->load() / 100.0f;
+    float dryLevel =
+        parameters_.getRawParameterValue("dryLevel")->load() / 100.0f;
+    float dryPan = parameters_.getRawParameterValue("dryPan")->load();
 
     // Get master LFO parameters
     float masterLfoRate =
@@ -176,7 +179,8 @@ public:
     }
 
     // Process through delay matrix with current routing
-    delayMatrix_.processWithRouting(buffer, mix, routingGraph_);
+    delayMatrix_.processWithRouting(buffer, mix, routingGraph_, dryLevel,
+                                    dryPan);
 
     // Copy band levels for UI activity indicators
     for (int band = 0; band < 8; ++band) {
@@ -260,6 +264,9 @@ public:
   }
   void unlockSafetyMute() { delayMatrix_.unlockSafetyMute(); }
 
+  // Accessors for preset management
+  juce::AudioProcessorValueTreeState& getAPVTS() { return parameters_; }
+
 private:
   juce::AudioProcessorValueTreeState parameters_;
   uds::DelayMatrix delayMatrix_;
@@ -272,11 +279,22 @@ private:
   createParameterLayout() {
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
 
-    // Global mix
+    // Global mix (wet level)
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID{"mix", 2}, "Mix",
         juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 50.0f,
         juce::AudioParameterFloatAttributes().withLabel("%")));
+
+    // Dry level (for MagicStomp presets that attenuate dry signal)
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID{"dryLevel", 1}, "Dry Level",
+        juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 100.0f,
+        juce::AudioParameterFloatAttributes().withLabel("%")));
+
+    // Dry pan (for MagicStomp presets with stereo-separated dry signal)
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID{"dryPan", 1}, "Dry Pan",
+        juce::NormalisableRange<float>(-1.0f, 1.0f, 0.01f), 0.0f));
 
     // Master LFO (modulates all bands together for chorus-like effects)
     params.push_back(std::make_unique<juce::AudioParameterFloat>(

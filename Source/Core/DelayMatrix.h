@@ -73,7 +73,8 @@ public:
   /**
    * @brief Process audio through the delay matrix using routing graph
    */
-  void process(juce::AudioBuffer<float>& buffer, float globalMix) {
+  void process(juce::AudioBuffer<float>& buffer, float wetMix,
+               float dryLevel = 1.0f, float dryPan = 0.0f) {
     if (!prepared_ || bands_.empty())
       return;
 
@@ -155,14 +156,19 @@ public:
                        wetBuffer.getWritePointer(1), numSamples);
     }
 
-    // Final mix: output = dry + wet * globalMix
+    // Final mix: output = dry * dryLevel * dryPan + wet * wetMix
+    // Pan law: equal power panning using cos/sin
+    float dryPanL = std::cos((dryPan + 1.0f) * 0.25f * 3.14159f) * dryLevel;
+    float dryPanR = std::sin((dryPan + 1.0f) * 0.25f * 3.14159f) * dryLevel;
+
     for (int ch = 0; ch < numChannels; ++ch) {
       const float* dry = dryBuffer.getReadPointer(ch);
       const float* wet = wetBuffer.getReadPointer(ch);
       float* out = buffer.getWritePointer(ch);
+      float dryGain = (ch == 0) ? dryPanL : dryPanR;
 
       for (int s = 0; s < numSamples; ++s) {
-        out[s] = dry[s] + wet[s] * globalMix;
+        out[s] = dry[s] * dryGain + wet[s] * wetMix;
       }
     }
   }
@@ -173,8 +179,9 @@ public:
    * This allows the processor to own the routing graph while DelayMatrix
    * handles the DSP.
    */
-  void processWithRouting(juce::AudioBuffer<float>& buffer, float globalMix,
-                          const RoutingGraph& externalRouting) {
+  void processWithRouting(juce::AudioBuffer<float>& buffer, float wetMix,
+                          const RoutingGraph& externalRouting,
+                          float dryLevel = 1.0f, float dryPan = 0.0f) {
     if (!prepared_ || bands_.empty())
       return;
 
@@ -264,14 +271,19 @@ public:
                        wetBuffer.getWritePointer(1), numSamples);
     }
 
-    // Final mix
+    // Final mix: output = dry * dryLevel * dryPan + wet * wetMix
+    // Pan law: equal power panning using cos/sin
+    float dryPanL = std::cos((dryPan + 1.0f) * 0.25f * 3.14159f) * dryLevel;
+    float dryPanR = std::sin((dryPan + 1.0f) * 0.25f * 3.14159f) * dryLevel;
+
     for (int ch = 0; ch < numChannels; ++ch) {
       const float* dry = dryBuffer.getReadPointer(ch);
       const float* wet = wetBuffer.getReadPointer(ch);
       float* out = buffer.getWritePointer(ch);
+      float dryGain = (ch == 0) ? dryPanL : dryPanR;
 
       for (int s = 0; s < numSamples; ++s) {
-        out[s] = dry[s] + wet[s] * globalMix;
+        out[s] = dry[s] * dryGain + wet[s] * wetMix;
       }
     }
   }
