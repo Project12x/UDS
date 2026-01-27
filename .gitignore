@@ -1,0 +1,68 @@
+# Build directories
+build/
+cmake-build-*/
+out/
+
+# IDE
+.vs/
+.vscode/
+*.vcxproj.user
+*.suo
+*.user
+.idea/
+
+# CPM cache (JUCE gets downloaded here)
+_deps/
+.cache/
+
+# CMake
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+compile_commands.json
+*.cmake
+!CMakeLists.txt
+
+# JUCE build artifacts
+JuceLibraryCode/
+Builds/
+*.jucer
+
+# Object files
+*.o
+*.obj
+*.lib
+*.a
+*.dll
+*.so
+*.dylib
+*.exe
+
+# Debug/temp
+*.pdb
+*.ilk
+*.log
+*.tlog
+*.idb
+*.ipdb
+*.iobj
+ipch/
+x64/
+Debug/
+Release/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# VST3 local builds (not the installed ones)
+*.vst3/
+
+# macOS
+*.xcodeproj/
+*.xcworkspace/
+DerivedData/
+
+# Package managers
+node_modules/
+vcpkg_installed/

@@ -1,0 +1,72 @@
+name: UDS CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Configure CMake
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      - name: Run Tests
+        run: |
+          if (Test-Path build/Tests/Release/UDS_Tests.exe) {
+            ./build/Tests/Release/UDS_Tests.exe
+          } else {
+            Write-Host "No tests found, skipping..."
+          }
+        shell: pwsh
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: UDS-Windows-VST3
+          path: build/UDS_artefacts/Release/VST3/
+          retention-days: 14
+
+  build-macos:
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Configure CMake
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: UDS-macOS-VST3
+          path: build/UDS_artefacts/Release/VST3/
+          retention-days: 14
+
+  # Code quality checks
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check clang-format
+        uses: jidicula/clang-format-action@v4.13.0
+        with:
+          clang-format-version: "17"
+          check-path: "Source"
