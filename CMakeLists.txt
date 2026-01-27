@@ -53,14 +53,14 @@ endif()
 # Plugin Configuration
 # ==============================================================================
 juce_add_plugin(UDS
-    COMPANY_NAME "Antigravity"
+    COMPANY_NAME "WorriedWalrus"
     IS_SYNTH FALSE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
     IS_MIDI_EFFECT FALSE
     EDITOR_WANTS_KEYBOARD_FOCUS TRUE
     COPY_PLUGIN_AFTER_BUILD TRUE
-    PLUGIN_MANUFACTURER_CODE "AntG"
+    PLUGIN_MANUFACTURER_CODE "WwRs"
     PLUGIN_CODE "UDSd"
     FORMATS Standalone VST3
     PRODUCT_NAME "UDS - Universal Delay System"
