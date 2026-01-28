@@ -1,7 +1,30 @@
 # UDS Project State
 
 > **Snapshot Date**: 2026-01-28  
-> **Current Phase**: Phase 3.6 Complete
+> **Current Phase**: Phase 5 In Progress (DSP Foundations)
+
+---
+
+## Quick Status
+
+| Area | Status |
+|------|--------|
+| **Build** | ✅ Compiles, zero warnings |
+| **Phase 1-3** | ✅ Complete |
+| **Phase 4** | 3/4 presets done, chart pending |
+| **Phase 5** | 4/7 foundations complete |
+| **Uncommitted Changes** | Roadmap refactor, needs commit |
+
+---
+
+## Recent Changes (This Session)
+
+- Restructured Roadmap from bloated Phase 5 into Phases 5-8
+- Added gap analysis features: stereo width, copy/paste band, tape stop, CLAP
+- Added Signalsmith Stretch + chowdsp_wdf libraries
+- Implemented cubic Hermite interpolation in DelayBandNode
+- Implemented Jiles-Atherton hysteresis for Tape algorithm
+- Created comprehensive maintenance protocol with commit triggers
 
 ---
 
@@ -22,64 +45,57 @@
 | ------- | ------ | ----- |
 | 8-band delay | ✅ Working | Circular buffer, up to 700ms per band |
 | Feedback | ✅ Working | 8-stage SafetyLimiter prevents runaway |
-| Algorithms | ✅ Working | Digital, Analog, Tape, Lo-Fi |
+| Algorithms | ✅ Working | Digital, Analog, Tape (Jiles-Atherton), Lo-Fi |
 | Filters | ✅ Working | Hi/Lo cut per band |
 | LFO modulation | ✅ Working | Sine, Triangle, Saw, Square, Brownian, Lorenz |
-| Master LFO | ✅ Working | Global modulation with "None" option to disable |
+| Master LFO | ✅ Working | Global modulation with "None" option |
 | Ping-pong | ✅ Working | L/R cross-feed per band |
 | Phase invert | ✅ Working | Per-band toggle |
 | I/O Modes | ✅ Working | Auto, Mono, Mono→Stereo, Stereo |
+| Cubic Hermite | ✅ Working | Smooth modulated delays |
+
+### DSP Pending
+
+| Feature | Priority | Notes |
+|---------|----------|-------|
+| Attack envelope | High | Enables Volume Pedal Swell FX presets |
+| MIDI CC infrastructure | High | Enables expression mapping |
+| Stereo width control | Medium | Gap analysis - competitors have this |
 
 ### Routing
 
-| Feature | Status | Notes |
-| ------- | ------ | ----- |
-| Parallel mode | ✅ Working | Default: Input → all bands → Output |
-| Series mode | ✅ Working | Input → B1 → B2 → ... → B8 → Output |
-| Custom routing | ✅ Working | Drag cables between any nodes |
-| Topological sort | ✅ Working | Correct processing order |
-| UI ↔ Audio sync | ✅ Working | Changes propagate to processor |
-| Undo/Redo | ✅ Working | Ctrl+Z / Ctrl+Shift+Z |
+| Feature | Status |
+| ------- | ------ |
+| Parallel mode | ✅ Working |
+| Series mode | ✅ Working |
+| Custom routing | ✅ Working |
+| Topological sort | ✅ Working |
+| UI ↔ Audio sync | ✅ Working |
+| Undo/Redo | ✅ Working |
+
+### Preset System
+
+| Feature | Status |
+|---------|--------|
+| XML serialization | ✅ Working |
+| Preset browser | ✅ Working |
+| Tag filtering | ✅ Working |
+| A/B comparison | ✅ Working |
+| Factory presets | ✅ 12 Holdsworth presets |
+| MagicStomp import | ✅ Working |
 
 ### UI
 
-| Feature | Status | Notes |
-| ------- | ------ | ----- |
-| Parameter panels | ✅ Working | 8 bands in 2×4 grid |
-| Node editor | ✅ Working | Draggable nodes, bezier cables |
-| Zoom/Pan | ✅ Working | Mouse wheel, right-click drag |
-| Per-band colors | ✅ Working | 8 distinct cable colors |
-| Solo/Mute | ✅ Working | Exclusive solo mode |
-| Signal LEDs | ✅ Working | Per-band activity indicators |
-| Slider tooltips | ✅ Working | Hover for parameter info |
-| Double-click reset | ✅ Working | Resets to default values |
-| I/O Mode selector | ✅ Working | Header bar dropdown |
-| Master LFO controls | ✅ Working | Rate, Depth, Waveform (incl. None) |
-
-### Audio Safety (8 Stages)
-
-| Stage | Feature | Status |
-| ----- | ------- | ------ |
-| 0 | Extreme peak detection (+12dB) | ✅ |
-| 1 | NaN/Inf protection | ✅ |
-| 2 | DC offset blocking | ✅ |
-| 3 | Safety mute system | ✅ |
-| 4 | Soft-knee limiting | ✅ |
-| 5 | Sustained loudness detection | ✅ |
-| 6 | Slew rate limiting | ✅ |
-| 7 | Hard clip | ✅ |
-
----
-
-## Infrastructure
-
-| Item | Status |
-| ---- | ------ |
-| CHANGELOG.md | ✅ Created |
-| .clang-format | ✅ Configured |
-| GitHub Actions CI | ✅ Windows/macOS builds |
-| Unit tests | ✅ Catch2 scaffold |
-| Parameter versioning | ✅ Version 2 |
+| Feature | Status |
+| ------- | ------ |
+| Parameter panels | ✅ 8 bands in 2×4 grid |
+| Node editor | ✅ Draggable nodes, bezier cables |
+| Zoom/Pan | ✅ Mouse wheel, right-click drag |
+| Per-band colors | ✅ 8 distinct cable colors |
+| Solo/Mute | ✅ Exclusive solo mode |
+| Signal LEDs | ✅ Per-band activity |
+| Slider tooltips | ✅ Working |
+| Double-click reset | ✅ Working |
 
 ---
 
@@ -87,9 +103,21 @@
 
 | Issue | Severity | Notes |
 | ----- | -------- | ----- |
-| Chorus effect not fully audible | Medium | Needs Signalsmith interpolation (Phase 5.7A) |
-| No factory presets | Low | Basic preset system works |
-| Clang linter false positives | N/A | JUCE include paths not in linter |
+| IDE lint false positives | N/A | `juce` undeclared - IDE config issue, build works |
+| No AU format | Medium | No Mac hardware for development |
+| No ARM builds | Low | No Apple Silicon hardware |
+
+---
+
+## Dependencies
+
+| Dependency | Version | License | Purpose |
+|------------|---------|---------|---------|
+| JUCE | 8.x | GPL-3.0 | Audio framework |
+| nlohmann/json | 3.11 | MIT | JSON parsing |
+| signalsmith-stretch | latest | MIT | Interpolation |
+| chowdsp_wdf | latest | BSD-3 | Future WDF filters |
+| Catch2 | 3.x | BSL-1.0 | Unit tests (optional) |
 
 ---
 
@@ -98,7 +126,7 @@
 ```
 Core/:  10 files (DelayBandNode, DelayMatrix, RoutingGraph, SafetyLimiter,
                   DelayAlgorithm, FilterSection, LFOModulator, PresetManager,
-                  RoutingUndoManager, ModulationEngine)
+                  RoutingUndoManager, ModulationEngine, GenerativeModulator)
 UI/:    10 files (BandNodeComponent, BandParameterPanel, LookAndFeel, 
                   MainComponent, NodeEditorCanvas, NodeVisual, Typography,
                   PresetBrowserPanel, StandaloneMetronome, SafetyMuteOverlay)
@@ -108,17 +136,9 @@ Tests/: 2 files (DSPTests.cpp, CMakeLists.txt)
 
 ---
 
-## Dependencies
-
-- **JUCE**: 8.x (via CPM)
-- **C++**: 20
-- **Build**: CMake 3.22+, MSVC 2022
-- **Tests**: Catch2 (optional)
-
----
-
 ## Next Actions
 
-1. Phase 3.3: Factory preset curation (verify MagicStomp accuracy)
-2. Phase 5.7A: Signalsmith integration (fix chorus audibility)
-3. Phase 5.1: Visual signal flow (glowing cables)
+1. Commit current roadmap refactor
+2. Create parameter comparison chart (UD Stomp → UDS)
+3. Implement attack envelope for Volume Pedal Swell FX presets
+4. Add stereo width control

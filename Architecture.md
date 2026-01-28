@@ -1,6 +1,6 @@
 # UDS Architecture
 
-> **Last Updated**: 2026-01-27 (Phase 3.4)
+> **Last Updated**: 2026-01-28 (Phase 5)
 
 ---
 
@@ -86,6 +86,22 @@ Single delay line with circular buffer.
 | pan | -1 to 1 | 0 |
 | algorithm | Digital/Analog/Tape/LoFi | Digital |
 | pingPong | true/false | false |
+
+**Interpolation**: 4-point cubic Hermite for smooth modulated delays.
+
+---
+
+### DelayAlgorithm
+**Location**: `Source/Core/DelayAlgorithm.h`
+
+Polymorphic algorithm interface for per-band character:
+
+| Algorithm | Character | Key DSP |
+|-----------|-----------|--------|
+| Digital | Clean, precise | Pass-through |
+| Analog | Warm, saturated | tanh + LPF |
+| Tape | Vintage, saturated | Jiles-Atherton hysteresis |
+| Lo-Fi | Degraded | Bitcrush + sample rate reduction |
 
 ---
 

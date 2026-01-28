@@ -1,7 +1,7 @@
 # UDS Roadmap
 
-> **Last Updated**: 2026-01-27  
-> **Status**: Phase 3 In Progress
+> **Last Updated**: 2026-01-28  
+> **Status**: Phase 3 Complete, Phase 4-5 In Progress
 
 *"The only delay where you can watch your sound travel"*
 
@@ -92,12 +92,12 @@
 
 ### 4.1 Preset Recreation
 
-| Preset Type | Details | Depends On |
-| ----------- | ------- | ---------- |
-| Stereo Enhanced Lead (×9) | 10-40ms delays, hard-panned L/R, chorus mod | 3.2 LFO |
-| Single Source Point Stereo | Two delays, one phase-inverted | 3.2 Phase |
-| Vintage Echo (×3) | 200-400ms, filter darkening | 3.1 Analog, 3.2 Filters |
-| Volume Pedal Swell FX | Attack envelope, pad textures | New: attack envelope |
+| Preset Type | Details | Depends On | Status |
+| ----------- | ------- | ---------- | ------ |
+| Stereo Enhanced Lead (×9) | 10-40ms delays, hard-panned L/R, chorus mod | 3.2 LFO | ✅ |
+| Single Source Point Stereo | Two delays, one phase-inverted | 3.2 Phase | ✅ |
+| Vintage Echo (×3) | 200-400ms, filter darkening | 3.1 Analog, 3.2 Filters | ✅ |
+| Volume Pedal Swell FX | Attack envelope, pad textures | 5.4 Attack Envelope | ⏳ |
 
 ### 4.2 Documentation
 
@@ -105,154 +105,127 @@
 
 ---
 
-## Phase 5: Signature Features
+## Phase 5: DSP Foundations
 
-### 5.1 Visual Signal Flow ⭐
+> *Architectural work that enables future features*
 
-- [ ] Cables glow/pulse with audio level
-- [ ] Real-time visualization of signal path
+**Completed ✅**
 
-### 5.2 Routing Morphing
+- [x] Cubic Hermite interpolation (smooth modulated delays)
+- [x] Signalsmith Stretch + chowdsp_wdf libraries
+- [x] Jiles-Atherton hysteresis for Tape algorithm
+- [x] Brownian Motion + Lorenz Attractor LFOs
 
-- [ ] Crossfade between routing configurations
-- [ ] Tempo-synced routing changes
-- [ ] Morph presets (A→B interpolation)
+**Remaining**
 
-### 5.3 Spectral Splitting
-
-- [ ] Route frequency bands to different delays
-- [ ] Crossover frequency controls
-
-### 5.4 Extended DSP
-
-- [ ] Per-band input gain staging (pre-delay saturation)
-- [ ] Sidechain ducking
-- [ ] MIDI CC mapping
-- [ ] Reverse delays
-- [ ] Freeze/hold mode
-
-### 5.5 Generative Modulation (The "Living" System)
-
-#### Implemented ✅
-
-- [x] Brownian Motion LFO (Random Walk with smooth interpolation)
-- [x] Lorenz Attractor (Chaotic modulation with slew limiting)
-- [x] Rate control for generative evolution speed
-
-#### Planned: Musical Quantization
-
-- [ ] Tempo Sync Mode - Lock generative updates to host BPM
-- [ ] Note Division Selector - Quantize to 1/4, 1/8, 1/16, 1/32 notes
-- [ ] Freeform vs Quantized Toggle - Per-LFO choice
-- [ ] Swing/Shuffle - Humanize quantized timing
-- [ ] Conway's Game of Life (Grid-based modulation source)
-
-### 5.6 Advanced Algorithms (New Algorithm Types)
-
-- [ ] Granular Delay (Grain size, density, pitch)
-- [ ] Diffusion/Smear (Allpass filters for reverb textures)
-- [ ] Pitch Shifting (Crystals/Shimmer effect)
-
-### 5.7 Algorithm Refinement & DL4 Expansion
-
-> *Improve existing algorithms toward professional hardware quality and expand DL4-style algorithm library*
-
-#### Phase A: DSP Quality Integration ✅
-
-> Added **Signalsmith Stretch** (MIT) and **chowdsp_wdf** (BSD-3) libraries. Implemented **cubic Hermite interpolation** and **Jiles-Atherton hysteresis** for tape saturation.
-
-- [x] Add `signalsmith-audio/stretch` via CMake FetchContent
-- [x] Add `chowdsp_wdf` via CMake FetchContent
-- [x] Replace linear interpolation with cubic Hermite in `DelayBandNode`
-- [x] Implement Jiles-Atherton hysteresis for Tape algorithm
-
-#### Phase B: Improve Existing Delay Types
-
-> Each algorithm should have distinct, musical character
-
-**Digital** (currently clean pass-through)
-- [ ] Add optional soft-knee limiter for clean feedback control
-- [ ] Optional sub-octave generation for bass enhancement
-
-**Analog** (currently tanh saturation + LPF)
-- [ ] Add bucket-brigade companding artifacts
-- [ ] Clock noise simulation at high feedback
-- [ ] Variable filter drift/instability
-
-**Tape** (now has Jiles-Atherton hysteresis)
-- [ ] Add subtle wow/flutter via internal LFO
-- [ ] Head gap frequency response modeling
-- [ ] Tape speed variations (15ips vs 7.5ips character)
-
-**Lo-Fi** (currently bitcrush + sample rate reduction)
-- [ ] Add vinyl-style crackle/noise
-- [ ] Telephone/radio bandpass filter option
-- [ ] Pitch instability/warble
-
-#### Phase C: DL4 Algorithm Expansion
-
-> New algorithms inspired by Line 6 DL4 MKII
-
-- [ ] **Reverse** - Reversed audio chunks with crossfade
-- [ ] **Sweep Echo** - Delay with resonant filter sweep
-- [ ] **Tube Echo** - Emulate tube-based Echoplex character
-- [ ] **Multi-Head** - Simulated multi-head tape like Roland Space Echo
-- [ ] **Pattern** - Rhythmic multi-tap patterns
-- [ ] **Swell** - Auto-volume swells on repeats
-- [ ] **Ducking** - Delay ducks while playing, swells on silence
-- [ ] **Ice/Shimmer** - Pitch-shifted ethereal delays (Crystals-style)
-- [ ] **Trem** - Synchronized tremolo on repeats
-- [ ] **Filter** - Resonant filter sweep on repeats
-
-#### Phase D: Premium Feature Parity
-
-> Features expected on Eventide/Strymon-tier delays
-
-**Routing & Bypass**
-- [ ] Kill Dry mode (100% wet for parallel FX loops)
-- [ ] Trails/Spillover (delays continue when bypassed)
-- [ ] Analog dry path option (zero-latency dry signal)
-
-**Modulation Enhancements**
-- [ ] Per-repeat filter sweep (resonant LPF/HPF/BPF)
-- [ ] Per-repeat tremolo with LFO sync
-- [ ] Grit/saturation control per algorithm
-
-**Global Features**
-- [x] Global tap tempo with subdivisions
-- [ ] Expression pedal mapping (MIDI CC learn)
-- [ ] Preset morphing/crossfade
-
-#### Quality Benchmarks
-
-- [ ] Reference A/B Testing - Compare against Eventide TimeFactor, Strymon Timeline
-- [ ] Modulation Response - Confirm modulated delays smooth with cubic interpolation
-
-#### Phase E: Commercial Polish ($30+ Value)
-
-> Features expected at premium price point
-
-**DSP Features**
-- [ ] **Freeze** - Capture delay buffer, loop infinitely with decay control
-- [ ] **Rhythm patterns** - Programmable multi-tap patterns like EchoBoy
-- [ ] **Diffusion** - Smear repeats into reverb-like textures
-
-**UI/UX**
-- [ ] Preset browser with tag filtering and search (✅ tags done)
-- [ ] Visual spectrum analyzer on output
-- [ ] Modulation visualization (show LFO affecting parameters)
-- [ ] Responsive layout for different window sizes
-- [ ] Dark/light theme toggle
-
-**Product Completion**
-- [ ] AAX format for Pro Tools compatibility
-- [ ] PDF user manual with algorithm descriptions
-- [ ] Preset library (50+ factory presets covering all algorithms)
-- [ ] Demo video / product page content
+- [ ] Attack envelope (enables Volume Pedal Swell FX presets)
+- [ ] MIDI CC infrastructure (enables expression mapping)
+- [ ] Algorithm plugin architecture (clean interface for new algorithms)
 
 ---
 
-### Unique Selling Points
+## Phase 6: Algorithm Library
+
+### 6.1 Improve Existing Algorithms
+
+| Algorithm | Current State | Improvements Needed |
+|-----------|---------------|---------------------|
+| Digital | Clean pass-through | Soft limiter, sub-octave |
+| Analog | tanh + LPF | BBD companding, clock noise, filter drift |
+| Tape | Jiles-Atherton ✅ | Wow/flutter, head response, tape speed |
+| Lo-Fi | Bitcrush + SR | Vinyl crackle, radio filter, pitch warble |
+
+### 6.2 New Algorithms (MVP)
+
+| Algorithm | Description | Complexity |
+|-----------|-------------|------------|
+| **Reverse** | Reversed chunks with crossfade | Medium |
+| **Ducking** | Ducks while playing, swells on silence | Easy |
+| **Swell** | Auto-volume swells on repeats | Easy |
+| **Freeze** | Capture buffer, loop infinitely | Medium |
+| **Tape Stop** | Slowdown effect for transitions | Easy |
+
+### 6.3 New Algorithms (Premium)
+
+| Algorithm | Description | Complexity |
+|-----------|-------------|------------|
+| **Ice/Shimmer** | Pitch-shifted ethereal delays | Hard |
+| **Multi-Head** | Space Echo simulation | Medium |
+| **Sweep Echo** | Resonant filter sweep | Medium |
+| **Pattern** | Rhythmic multi-tap patterns | Medium |
+| **Granular** | Grain size, density, pitch | Hard |
+
+---
+
+## Phase 7: Premium Features
+
+> *Features expected on Eventide/Strymon-tier delays*
+
+### 7.1 Routing & Bypass
+
+- [ ] Kill Dry mode (100% wet for parallel FX loops)
+- [ ] Trails/Spillover (delays continue when bypassed)
+- [ ] Analog dry path (zero-latency dry signal)
+
+### 7.2 Modulation Enhancements
+
+- [ ] Per-repeat filter sweep (resonant LPF/HPF/BPF)
+- [ ] Per-repeat tremolo with LFO sync
+- [ ] Grit/saturation control per algorithm
+- [ ] Diffusion/Smear (allpass reverb textures)
+- [ ] Tempo sync for generative LFOs
+
+### 7.3 Global Features
+
+- [x] Global tap tempo with subdivisions
+- [ ] **Stereo width control** (missing from competitors)
+- [ ] Expression pedal mapping (MIDI CC learn)
+- [ ] Preset morphing/crossfade
+
+### 7.4 Workflow & UX
+
+- [ ] **Copy/paste band settings** (right-click menu)
+- [ ] Automation readout (show automated parameters)
+- [ ] Oversampling toggle (CPU/quality tradeoff)
+
+---
+
+## Phase 8: Commercial Release
+
+> *Required for $30+ product*
+
+### 8.1 UI Polish
+
+- [x] Preset browser with tag filtering
+- [ ] Visual spectrum analyzer
+- [ ] Modulation visualization
+- [ ] Responsive layout
+- [ ] Dark/light theme toggle
+
+### 8.2 Product Completion
+
+- [ ] AAX format (Pro Tools)
+- [ ] CLAP format (future-proofing)
+- [ ] PDF user manual
+- [ ] 50+ factory presets
+- [ ] Demo video / product page
+
+### 8.3 Platform Notes
+
+> ⚠️ AU format deferred - no Mac hardware for development  
+> ⚠️ ARM/Apple Silicon deferred - no hardware  
+> ⚠️ Linux VST3 low priority - small market, Wine wrappers common
+
+### 8.4 Future Ideas (Post-Release)
+
+- [ ] Visual signal flow (cables pulse with audio)
+- [ ] Routing morphing (crossfade between configurations)
+- [ ] Spectral splitting (route frequency bands to delays)
+- [ ] Conway's Game of Life modulation
+
+---
+
+## Unique Selling Points
 
 > *What makes UDS worth $30-50*
 
