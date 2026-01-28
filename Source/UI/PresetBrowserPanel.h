@@ -64,10 +64,27 @@ public:
     menuButton_.onClick = [this]() { showPresetMenu(); };
     addAndMakeVisible(menuButton_);
 
+    // A/B toggle button
+    abButton_.setButtonText("A");
+    abButton_.setColour(juce::TextButton::buttonColourId,
+                        juce::Colour(0xff2a5a2a)); // Green tint for A
+    abButton_.setColour(juce::TextButton::textColourOffId,
+                        juce::Colour(0xffe0e0e0));
+    abButton_.onClick = [this]() {
+      // Right-click to store, left-click to toggle
+      presetManager_.toggleAB();
+      updateABButton();
+    };
+    addAndMakeVisible(abButton_);
+
     // Connect to preset manager updates
-    presetManager_.onPresetChanged = [this]() { updatePresetName(); };
+    presetManager_.onPresetChanged = [this]() {
+      updatePresetName();
+      updateABButton();
+    };
 
     updatePresetName();
+    updateABButton();
   }
 
   void resized() override {
@@ -76,6 +93,7 @@ public:
     const int buttonWidth = 28;
     const int saveButtonWidth = 50;
     const int menuButtonWidth = 32;
+    const int abButtonWidth = 32;
 
     prevButton_.setBounds(bounds.removeFromLeft(buttonWidth));
     bounds.removeFromLeft(4);
@@ -84,6 +102,9 @@ public:
     bounds.removeFromRight(4);
 
     menuButton_.setBounds(bounds.removeFromRight(menuButtonWidth));
+    bounds.removeFromRight(4);
+
+    abButton_.setBounds(bounds.removeFromRight(abButtonWidth));
     bounds.removeFromRight(4);
 
     saveButton_.setBounds(bounds.removeFromRight(saveButtonWidth));
@@ -109,6 +130,14 @@ private:
       name += " *";
     }
     presetNameLabel_.setText(name, juce::dontSendNotification);
+  }
+
+  void updateABButton() {
+    int slot = presetManager_.getCurrentABSlot();
+    abButton_.setButtonText(slot == 0 ? "A" : "B");
+    abButton_.setColour(juce::TextButton::buttonColourId,
+                        slot == 0 ? juce::Colour(0xff2a5a2a)   // Green for A
+                                  : juce::Colour(0xff5a2a2a)); // Red for B
   }
 
   void showSaveDialog() {
@@ -137,17 +166,43 @@ private:
   void showPresetMenu() {
     juce::PopupMenu menu;
 
-    // Add presets
+    // Organize presets by category
     const auto& presets = presetManager_.getPresets();
+    auto categories = presetManager_.getCategories();
+
     if (!presets.empty()) {
+      // Add "All Presets" submenu
+      juce::PopupMenu allMenu;
       for (size_t i = 0; i < presets.size(); ++i) {
-        menu.addItem(static_cast<int>(i + 1), presets[i].name,
-                     true, // enabled
-                     static_cast<int>(i) ==
-                         presetManager_.getCurrentPresetIndex()); // ticked
+        allMenu.addItem(static_cast<int>(i + 1), presets[i].name, true,
+                        static_cast<int>(i) ==
+                            presetManager_.getCurrentPresetIndex());
+      }
+      menu.addSubMenu("All Presets", allMenu);
+      menu.addSeparator();
+
+      // Add category submenus
+      for (const auto& category : categories) {
+        juce::PopupMenu catMenu;
+        auto filtered = presetManager_.getPresetsFiltered(category);
+        for (const auto& [idx, preset] : filtered) {
+          catMenu.addItem(idx + 1, preset.name, true,
+                          idx == presetManager_.getCurrentPresetIndex());
+        }
+        menu.addSubMenu(category, catMenu);
       }
       menu.addSeparator();
     }
+
+    // A/B Comparison
+    juce::PopupMenu abMenu;
+    abMenu.addItem(-10, "Store to A", true, presetManager_.hasSlotData(0));
+    abMenu.addItem(-11, "Store to B", true, presetManager_.hasSlotData(1));
+    abMenu.addSeparator();
+    abMenu.addItem(-12, "Recall A", presetManager_.hasSlotData(0));
+    abMenu.addItem(-13, "Recall B", presetManager_.hasSlotData(1));
+    menu.addSubMenu("A/B Comparison", abMenu);
+    menu.addSeparator();
 
     // Utility actions
     menu.addItem(-1, "Open Preset Folder...");
@@ -166,6 +221,18 @@ private:
             presetManager_.scanPresets();
           } else if (result == -3) {
             showImportDialog();
+          } else if (result == -10) {
+            presetManager_.storeToSlot(0);
+            updateABButton();
+          } else if (result == -11) {
+            presetManager_.storeToSlot(1);
+            updateABButton();
+          } else if (result == -12) {
+            presetManager_.recallFromSlot(0);
+            updateABButton();
+          } else if (result == -13) {
+            presetManager_.recallFromSlot(1);
+            updateABButton();
           }
         });
   }
@@ -206,6 +273,7 @@ private:
   juce::Label presetNameLabel_;
   juce::TextButton saveButton_;
   juce::TextButton menuButton_;
+  juce::TextButton abButton_;
   std::unique_ptr<juce::FileChooser> fileChooser_;
 };
 

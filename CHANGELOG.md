@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **A/B Comparison** - Store/recall two preset states for instant comparison
+- **Preset Tag Filtering** - Browse presets by category (Stereo Lead, Rhythmic, Vintage)
 - **I/O Configuration selector** (Auto, Mono, Mono→Stereo, Stereo modes)
 - **Master LFO "None" option** to disable master modulation
 - Per-band ping-pong delay toggle (L/R alternation)

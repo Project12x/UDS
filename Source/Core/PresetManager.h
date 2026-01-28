@@ -5,7 +5,10 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_core/juce_core.h>
 
+#include <set>
+
 #include <nlohmann/json.hpp>
+
 
 
 namespace uds {
@@ -274,11 +277,94 @@ public:
   /** @brief Open user preset folder in system file browser */
   void showPresetFolder() { userPresetDirectory_.revealToUser(); }
 
+  /** @brief Get unique categories from all presets */
+  std::vector<juce::String> getCategories() const {
+    std::set<juce::String> uniqueCategories;
+    for (const auto& preset : presets_) {
+      if (preset.category.isNotEmpty()) {
+        uniqueCategories.insert(preset.category);
+      }
+    }
+    return std::vector<juce::String>(uniqueCategories.begin(),
+                                     uniqueCategories.end());
+  }
+
+  /** @brief Get presets filtered by category (empty = all) */
+  std::vector<std::pair<int, PresetInfo>>
+  getPresetsFiltered(const juce::String& category) const {
+    std::vector<std::pair<int, PresetInfo>> result;
+    for (size_t i = 0; i < presets_.size(); ++i) {
+      if (category.isEmpty() || presets_[i].category == category) {
+        result.push_back({static_cast<int>(i), presets_[i]});
+      }
+    }
+    return result;
+  }
+
   // Callback when preset changes
   std::function<void()> onPresetChanged;
 
   // Callback when routing changes (for UI sync)
   std::function<void()> onRoutingChanged;
+
+  // =============================================
+  // A/B Comparison
+  // =============================================
+
+  /** @brief Store current state to A or B slot (0=A, 1=B) */
+  void storeToSlot(int slot) {
+    if (slot < 0 || slot > 1)
+      return;
+
+    // Store APVTS state
+    juce::MemoryBlock stateData;
+    processor_.getStateInformation(stateData);
+    abSlots_[slot] = stateData;
+    abSlotNames_[slot] = getCurrentPresetName();
+
+    // If this is first store, set as current slot
+    if (!abHasData_[0] && !abHasData_[1]) {
+      currentABSlot_ = slot;
+    }
+    abHasData_[slot] = true;
+  }
+
+  /** @brief Recall state from A or B slot (0=A, 1=B) */
+  void recallFromSlot(int slot) {
+    if (slot < 0 || slot > 1 || !abHasData_[slot])
+      return;
+
+    // Restore APVTS state
+    processor_.setStateInformation(abSlots_[slot].getData(),
+                                   static_cast<int>(abSlots_[slot].getSize()));
+    currentABSlot_ = slot;
+
+    if (onPresetChanged)
+      onPresetChanged();
+    if (onRoutingChanged)
+      onRoutingChanged();
+  }
+
+  /** @brief Toggle between A and B slots */
+  void toggleAB() {
+    int otherSlot = (currentABSlot_ == 0) ? 1 : 0;
+    if (abHasData_[otherSlot]) {
+      recallFromSlot(otherSlot);
+    }
+  }
+
+  /** @brief Get current A/B slot (0=A, 1=B) */
+  int getCurrentABSlot() const { return currentABSlot_; }
+
+  /** @brief Check if slot has data */
+  bool hasSlotData(int slot) const {
+    return (slot >= 0 && slot <= 1) ? abHasData_[slot] : false;
+  }
+
+  /** @brief Get slot name */
+  juce::String getSlotName(int slot) const {
+    return (slot >= 0 && slot <= 1) ? abSlotNames_[slot] : "";
+  }
 
   /**
    * @brief Helper struct for band configuration
@@ -313,7 +399,8 @@ public:
                        const juce::String& author, const juce::String& category,
                        const std::vector<BandConfig>& bands,
                        const std::vector<std::pair<int, int>>& routing,
-                       int masterLfoWaveform = 0, float effectLevel = 50.0f,
+                       int masterLfoWaveform = 0, float masterLfoRate = 1.0f,
+                       float masterLfoDepth = 0.0f, float effectLevel = 50.0f,
                        float directLevel = 100.0f, float directPan = 0.0f) {
     auto xml = std::make_unique<juce::XmlElement>("UDSState");
     xml->setAttribute("presetName", name);
@@ -326,6 +413,8 @@ public:
     apvtsXml->setAttribute("dryLevel", directLevel);
     apvtsXml->setAttribute("dryPan", directPan);
     apvtsXml->setAttribute("masterLfoWaveform", masterLfoWaveform);
+    apvtsXml->setAttribute("masterLfoRate", masterLfoRate);
+    apvtsXml->setAttribute("masterLfoDepth", masterLfoDepth);
 
     // Configure all 8 bands
     int bandIdx = 0;
@@ -498,8 +587,11 @@ public:
         float loCutPct = getFloatParam(prefix + "LowCutFilter");
         band.loCut = static_cast<int>(20.0f + (loCutPct / 100.0f) * 980.0f);
 
-        // LFO Rate from Speed (0-10 Hz scale)
-        band.lfoRate = getFloatParam(prefix + "Speed");
+        // LFO Rate from Speed (0-10 arbitrary scale from UD Stomp)
+        // Unknown fundamental - scale to 0.1-3 Hz for musical chorus/vibrato
+        // Speed=0 → 0.1 Hz, Speed=10 → 3.1 Hz
+        float speedVal = getFloatParam(prefix + "Speed");
+        band.lfoRate = 0.1f + (speedVal / 10.0f) * 3.0f;
 
         // LFO Depth (0-10 scale → percentage)
         band.lfoDepth = getFloatParam(prefix + "Depth") * 10.0f;
@@ -612,15 +704,18 @@ public:
       }
 
       // Get master LFO waveform from WaveForm string (no space)
-      int masterLfoWaveform = 0;
+      // APVTS: 0=None, 1=Sine, 2=Triangle, 3=Saw, 4=Square, 5=Brownian,
+      // 6=Lorenz
+      int masterLfoWaveform =
+          1; // Default to Sine (not None) when waveform is present
       std::string waveFormStr = getStringParam("WaveForm");
       if (waveFormStr == "Triangle")
-        masterLfoWaveform = 1;
-      else if (waveFormStr == "Saw")
         masterLfoWaveform = 2;
-      else if (waveFormStr == "Square")
+      else if (waveFormStr == "Saw")
         masterLfoWaveform = 3;
-      // else Sine = 0
+      else if (waveFormStr == "Square")
+        masterLfoWaveform = 4;
+      // else Sine = 1 (default when waveform string is present but not matched)
 
       // Get DirectLevel (0-10 scale → 0-100%)
       float directLevel = getFloatParam("DirectLevel") * 10.0f;
@@ -633,9 +728,15 @@ public:
       if (file.existsAsFile())
         continue;
 
+      // Master LFO: Use sensible defaults for chorus effects
+      // Rate: 1.0 Hz (moderate speed), Depth: 25% (subtle modulation)
+      // These can be toggled on/off via masterLfoWaveform in the UI
+      float masterLfoRate = 1.0f;
+      float masterLfoDepth = (masterLfoWaveform > 0) ? 25.0f : 0.0f;
+
       writePresetFile(file, patchName, "Allan Holdsworth", category, bands,
-                      routing, masterLfoWaveform, effectLevel, directLevel,
-                      directPan);
+                      routing, masterLfoWaveform, masterLfoRate, masterLfoDepth,
+                      effectLevel, directLevel, directPan);
 
       ++imported;
     }
@@ -727,10 +828,13 @@ public:
         {{0, 1}, {1, 9}});
 
     // 10. Space Echo - dub-style series
-    createPreset("10 - Space Echo", "Factory", "Vintage",
-                 {{true, 250.0f, 35.0f, -0.5f, -3.0f, 1, 4000, 200},
-                  {true, 500.0f, 40.0f, 0.5f, -4.0f, 1, 3500, 250}},
-                 {{0, 1}, {1, 2}, {2, 9}}); // Series routing
+    // 10. Space Echo - dub-style series
+    createPreset(
+        "10 - Space Echo", "Factory", "Vintage",
+        {{true, 250.0f, 35.0f, -0.5f, -3.0f, 1, 4000, 200},
+         {true, 500.0f, 40.0f, 0.5f, -4.0f, 1, 3500, 250}},
+        {{0, 1}, {1, 2}, {1, 9}, {2, 9}}, // Series routing with both taps valid
+        true); // Force update to fix previous routing
 
     // 11. Ambient Wash - clean long tails
     createPreset("11 - Ambient Wash", "Factory", "Vintage",
@@ -751,10 +855,11 @@ public:
   void createPreset(const juce::String& name, const juce::String& author,
                     const juce::String& category,
                     std::initializer_list<BandConfig> bands,
-                    std::initializer_list<std::pair<int, int>> routing) {
+                    std::initializer_list<std::pair<int, int>> routing,
+                    bool overwrite = false) {
     auto file = userPresetDirectory_.getChildFile(name + ".udspreset");
-    if (file.existsAsFile())
-      return; // Don't overwrite existing presets
+    if (!overwrite && file.existsAsFile())
+      return; // Don't overwrite existing presets unless forced
 
     auto xml = std::make_unique<juce::XmlElement>("UDSState");
     xml->setAttribute("presetName", name);
@@ -807,6 +912,12 @@ public:
   std::vector<PresetInfo> presets_;
   int currentPresetIndex_ = -1;
   bool isModified_ = false;
+
+  // A/B comparison storage
+  std::array<juce::MemoryBlock, 2> abSlots_;
+  std::array<juce::String, 2> abSlotNames_ = {"", ""};
+  std::array<bool, 2> abHasData_ = {false, false};
+  int currentABSlot_ = 0;
 };
 
 } // namespace uds
