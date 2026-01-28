@@ -135,6 +135,28 @@
 
 ---
 
+### 5.5 Generative Modulation (The "Living" System)
+
+#### Implemented ✅
+
+- [x] Brownian Motion LFO (Random Walk with smooth interpolation)
+- [x] Lorenz Attractor (Chaotic modulation with slew limiting)
+- [x] Rate control for generative evolution speed
+
+#### Planned: Musical Quantization
+
+- [ ] **Tempo Sync Mode** - Lock generative updates to host BPM
+- [ ] **Note Division Selector** - Quantize to 1/4, 1/8, 1/16, 1/32 notes
+- [ ] **Freeform vs Quantized Toggle** - Per-LFO choice
+- [ ] **Swing/Shuffle** - Humanize quantized timing
+- [ ] Conway's Game of Life (Grid-based modulation source)
+
+### 5.6 Advanced Algorithms (80% Eventide Target)
+
+- [ ] Granular Delay (Grain size, density, pitch)
+- [ ] Diffusion/Smear (Allpass filters for reverb textures)
+- [ ] Pitch Shifting (Crystals/Shimmer effect)
+
 ## Future Development
 
 *No committed timeline*

@@ -2,6 +2,7 @@
 
 #include "../UI/NodeVisual.h"
 #include "DelayBandNode.h"
+#include "ModulationEngine.h"
 #include "RoutingGraph.h"
 #include "SafetyLimiter.h"
 
@@ -11,7 +12,6 @@
 #include <memory>
 #include <unordered_map>
 #include <vector>
-
 
 namespace uds {
 
@@ -41,6 +41,9 @@ public:
     // Prepare safety limiter
     limiter_.prepare(sampleRate);
 
+    // Prepare modulation engine
+    modulationEngine_.prepare(sampleRate, maxBlockSize);
+
     // Allocate node buffers (Input=0, Bands=1-8, Output=9)
     for (int i = 0; i < kNumNodes; ++i) {
       nodeBuffers_[i].setSize(2, static_cast<int>(maxBlockSize));
@@ -55,12 +58,18 @@ public:
         band->reset();
     }
     limiter_.reset();
+    modulationEngine_.reset();
   }
 
   void setBandParams(int bandIndex, const DelayBandParams& params) {
     if (bandIndex >= 0 && bandIndex < static_cast<int>(bands_.size())) {
-      if (bands_[static_cast<size_t>(bandIndex)])
+      if (bands_[static_cast<size_t>(bandIndex)]) {
         bands_[static_cast<size_t>(bandIndex)]->setParams(params);
+
+        // Forward modulation params to engine
+        modulationEngine_.setBandParams(bandIndex, params.modulationType,
+                                        params.lfoRateHz, params.lfoDepth);
+      }
     }
   }
 
@@ -96,6 +105,12 @@ public:
     for (int ch = 0; ch < numChannels; ++ch) {
       nodeBuffers_[0].copyFrom(ch, 0, buffer, ch, 0, numSamples);
     }
+
+    // Process Modulation Engine for this block
+    modulationEngine_.process(numSamples);
+    const auto& localMods = modulationEngine_.getLocalBuffer();
+    const auto& masterMod = modulationEngine_.getMasterBuffer();
+    const float* masterModRead = masterMod.getReadPointer(0);
 
     // Process nodes in topological order
     const auto& order = routingGraph_.getProcessingOrder();
@@ -139,7 +154,10 @@ public:
       }
 
       // Process through delay band (wet only, no dry mix)
-      band->process(bandInput, 1.0f);
+      // Get modulation signal for this band (Channel = bandIndex)
+      const float* localModRead = localMods.getReadPointer(bandIndex);
+
+      band->process(bandInput, 1.0f, localModRead, masterModRead);
 
       // Store in node buffer
       for (int ch = 0; ch < numChannels; ++ch) {
@@ -175,9 +193,6 @@ public:
 
   /**
    * @brief Process audio using an external routing graph
-   *
-   * This allows the processor to own the routing graph while DelayMatrix
-   * handles the DSP.
    */
   void processWithRouting(juce::AudioBuffer<float>& buffer, float wetMix,
                           const RoutingGraph& externalRouting,
@@ -203,6 +218,12 @@ public:
     for (int ch = 0; ch < numChannels; ++ch) {
       nodeBuffers_[0].copyFrom(ch, 0, buffer, ch, 0, numSamples);
     }
+
+    // Process Modulation Engine for this block
+    modulationEngine_.process(numSamples);
+    const auto& localMods = modulationEngine_.getLocalBuffer();
+    const auto& masterMod = modulationEngine_.getMasterBuffer();
+    const float* masterModRead = masterMod.getReadPointer(0);
 
     // Process nodes in topological order from external routing
     const auto& order = externalRouting.getProcessingOrder();
@@ -243,8 +264,11 @@ public:
         }
       }
 
-      // Process through delay band
-      band->process(bandInput, 1.0f);
+      // Get modulation signal for this band
+      const float* localModRead = localMods.getReadPointer(bandIndex);
+
+      // Process through delay band with modulation signals
+      band->process(bandInput, 1.0f, localModRead, masterModRead);
 
       // Calculate peak level for activity indicator
       float peak = 0.0f;
@@ -271,8 +295,7 @@ public:
                        wetBuffer.getWritePointer(1), numSamples);
     }
 
-    // Final mix: output = dry * dryLevel * dryPan + wet * wetMix
-    // Pan law: equal power panning using cos/sin
+    // Final mix
     float dryPanL = std::cos((dryPan + 1.0f) * 0.25f * 3.14159f) * dryLevel;
     float dryPanR = std::sin((dryPan + 1.0f) * 0.25f * 3.14159f) * dryLevel;
 
@@ -312,93 +335,31 @@ public:
   }
   void unlockSafetyMute() { limiter_.unlockPermanentMute(); }
 
+  /**
+   * @brief Set master LFO parameters
+   */
+  void setMasterLfo(float rate, float depth, int waveform) {
+    // Forward to engine
+    modulationEngine_.setMasterParams(static_cast<ModulationType>(waveform),
+                                      rate, depth);
+  }
+
 private:
   std::vector<std::unique_ptr<DelayBandNode>> bands_;
   RoutingGraph routingGraph_;
   SafetyLimiter limiter_;
+  ModulationEngine modulationEngine_; // The new engine
+
+  // Node buffers (Input + 8 Bands + Output)
+  static constexpr int kNumNodes = 10;
   std::unordered_map<int, juce::AudioBuffer<float>> nodeBuffers_;
 
   double sampleRate_ = 44100.0;
   size_t maxBlockSize_ = 512;
   bool prepared_ = false;
+
   std::array<float, 8> bandLevels_{
       {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}};
-
-  // Master LFO state
-  float masterLfoRate_ = 0.5f;
-  float masterLfoDepth_ = 0.0f;
-  int masterLfoWaveform_ = 0; // 0=Sine, 1=Tri, 2=Saw, 3=Square
-  double masterLfoPhase_ = 0.0;
-
-  /**
-   * @brief Generate master LFO sample
-   */
-  float generateMasterLfoSample() {
-    float value = 0.0f;
-    float phase = static_cast<float>(masterLfoPhase_);
-
-    switch (masterLfoWaveform_) {
-    case 0: // Sine
-      value = std::sin(phase * 2.0f * juce::MathConstants<float>::pi);
-      break;
-    case 1: // Triangle
-      value = 4.0f * std::abs(phase - 0.5f) - 1.0f;
-      break;
-    case 2: // Saw
-      value = 2.0f * phase - 1.0f;
-      break;
-    case 3: // Square
-      value = phase < 0.5f ? 1.0f : -1.0f;
-      break;
-    }
-
-    return value * masterLfoDepth_ / 100.0f;
-  }
-
-  /**
-   * @brief Advance master LFO phase
-   */
-  void advanceMasterLfoPhase(int numSamples) {
-    double phaseIncrement = masterLfoRate_ / sampleRate_;
-    masterLfoPhase_ += phaseIncrement * numSamples;
-    while (masterLfoPhase_ >= 1.0)
-      masterLfoPhase_ -= 1.0;
-  }
-
-public:
-  /**
-   * @brief Set master LFO parameters
-   */
-  void setMasterLfo(float rate, float depth, int waveform) {
-    masterLfoRate_ = rate;
-    masterLfoDepth_ = depth;
-    masterLfoWaveform_ = waveform;
-  }
-
-  /**
-   * @brief Get current master LFO modulation value (for band processing)
-   */
-  float getMasterLfoValue() const {
-    float phase = static_cast<float>(masterLfoPhase_);
-    float value = 0.0f;
-
-    switch (masterLfoWaveform_) {
-    case 0: // Sine
-      value = std::sin(phase * 2.0f * juce::MathConstants<float>::pi);
-      break;
-    case 1: // Triangle
-      value = 4.0f * std::abs(phase - 0.5f) - 1.0f;
-      break;
-    case 2: // Saw
-      value = 2.0f * phase - 1.0f;
-      break;
-    case 3: // Square
-      value = phase < 0.5f ? 1.0f : -1.0f;
-      break;
-    }
-
-    return value * masterLfoDepth_ / 100.0f;
-  }
 };
 
 } // namespace uds

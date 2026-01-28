@@ -35,11 +35,25 @@ public:
   void releaseResources() override { delayMatrix_.reset(); }
 
   bool isBusesLayoutSupported(const BusesLayout& layouts) const override {
-    if (layouts.getMainOutputChannelSet() != juce::AudioChannelSet::stereo() &&
-        layouts.getMainOutputChannelSet() != juce::AudioChannelSet::mono())
+    const auto& mainOutput = layouts.getMainOutputChannelSet();
+    const auto& mainInput = layouts.getMainInputChannelSet();
+
+    // 1. Output must be Stereo or Mono
+    if (mainOutput != juce::AudioChannelSet::stereo() &&
+        mainOutput != juce::AudioChannelSet::mono())
       return false;
-    if (layouts.getMainOutputChannelSet() != layouts.getMainInputChannelSet())
+
+    // 2. Input must be Stereo or Mono
+    if (mainInput != juce::AudioChannelSet::stereo() &&
+        mainInput != juce::AudioChannelSet::mono())
       return false;
+
+    // 3. We allow Mono->Stereo, Stereo->Stereo, Mono->Mono.
+    // We do NOT allow Stereo Input -> Mono Output (downmixing not supported
+    // yet)
+    if (mainInput.size() > mainOutput.size())
+      return false;
+
     return true;
   }
 
@@ -52,6 +66,12 @@ public:
 
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
       buffer.clear(i, 0, buffer.getNumSamples());
+
+    // Expand Mono Input to Stereo Output if needed
+    // This allows panning to work correctly even with a mono input
+    if (totalNumInputChannels == 1 && totalNumOutputChannels == 2) {
+      buffer.copyFrom(1, 0, buffer, 0, 0, buffer.getNumSamples());
+    }
 
     // Get BPM from host, or use internal metronome BPM for standalone
     double bpm = internalBpm_.load(); // Default to internal metronome BPM
@@ -73,7 +93,7 @@ public:
     float masterLfoRate =
         parameters_.getRawParameterValue("masterLfoRate")->load();
     float masterLfoDepth =
-        parameters_.getRawParameterValue("masterLfoDepth")->load();
+        parameters_.getRawParameterValue("masterLfoDepth")->load() / 100.0f;
     int masterLfoWaveform = static_cast<int>(
         parameters_.getRawParameterValue("masterLfoWaveform")->load());
     delayMatrix_.setMasterLfo(masterLfoRate, masterLfoDepth, masterLfoWaveform);
@@ -143,10 +163,19 @@ public:
           parameters_.getRawParameterValue(prefix + "lfoDepth")->load() /
           100.0f;
 
-      // LFO waveform (0=Sine, 1=Triangle, 2=Saw, 3=Square)
+      // LFO waveform (0=None, 1=Sine, 2=Triangle, 3=Saw, 4=Square, 5=Brownian,
+      // 6=Lorenz)
       int lfoWaveformIndex = static_cast<int>(
           parameters_.getRawParameterValue(prefix + "lfoWaveform")->load());
-      params.lfoWaveform = static_cast<uds::LFOWaveform>(lfoWaveformIndex);
+
+      if (lfoWaveformIndex == 0) {
+        // None: disable modulation effectively
+        params.lfoDepth = 0.0f;
+      } else {
+        // Map 1-based index to 0-based enum
+        params.modulationType =
+            static_cast<uds::ModulationType>(lfoWaveformIndex - 1);
+      }
 
       params.phaseInvert =
           parameters_.getRawParameterValue(prefix + "phaseInvert")->load() >
@@ -172,8 +201,8 @@ public:
         params.level = 0.0f;
       }
 
-      // Pass master LFO modulation value to band
-      params.masterLfoMod = delayMatrix_.getMasterLfoValue();
+      // Master LFO modulation is now handled by ModulationEngine inside
+      // DelayMatrix
 
       delayMatrix_.setBandParams(band, params);
     }
@@ -309,7 +338,9 @@ private:
 
     params.push_back(std::make_unique<juce::AudioParameterChoice>(
         juce::ParameterID{"masterLfoWaveform", 1}, "Master LFO Waveform",
-        juce::StringArray{"Sine", "Triangle", "Saw", "Square"}, 0));
+        juce::StringArray{"Sine", "Triangle", "Saw", "Square", "Brownian",
+                          "Lorenz"},
+        0));
 
     // Per-band parameters (8 bands)
     for (int band = 0; band < 8; ++band) {
@@ -358,7 +389,9 @@ private:
       params.push_back(std::make_unique<juce::AudioParameterChoice>(
           juce::ParameterID{prefix + "lfoWaveform", 2},
           bandName + "LFO Waveform",
-          juce::StringArray{"None", "Sine", "Triangle", "Saw", "Square"}, 0));
+          juce::StringArray{"None", "Sine", "Triangle", "Saw", "Square",
+                            "Brownian", "Lorenz"},
+          0));
 
       params.push_back(std::make_unique<juce::AudioParameterBool>(
           juce::ParameterID{prefix + "phaseInvert", 2},

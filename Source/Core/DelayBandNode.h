@@ -2,7 +2,7 @@
 
 #include "DelayAlgorithm.h"
 #include "FilterSection.h"
-#include "LFOModulator.h"
+#include "GenerativeModulator.h"
 
 #include <juce_audio_basics/juce_audio_basics.h>
 #include <juce_dsp/juce_dsp.h>
@@ -26,8 +26,10 @@ struct DelayBandParams {
   float loCutHz = 80.0f;
   float lfoRateHz = 1.0f;
   float lfoDepth = 0.0f;
-  LFOWaveform lfoWaveform = LFOWaveform::Sine;
-  float masterLfoMod = 0.0f; // Added: master LFO contribution (-1 to +1)
+
+
+  ModulationType modulationType = ModulationType::Sine;
+  // float masterLfoMod = 0.0f; // REMOVED: Managed externally via buffer
   bool phaseInvert = false;
   bool pingPong = false;
   bool enabled = true;
@@ -70,8 +72,8 @@ public:
     // Prepare filter section
     filterSection_.prepare(sampleRate);
 
-    // Prepare LFO
-    lfo_.prepare(sampleRate);
+    // Prepare filter section
+    filterSection_.prepare(sampleRate);
 
     prepared_ = true;
   }
@@ -88,7 +90,6 @@ public:
     }
 
     filterSection_.reset();
-    lfo_.reset();
   }
 
   void setParams(const DelayBandParams& params) {
@@ -105,9 +106,10 @@ public:
     filterSection_.setLoCutFrequency(params.loCutHz);
 
     // Update LFO parameters
-    lfo_.setRate(params.lfoRateHz);
-    lfo_.setDepth(params.lfoDepth);
-    lfo_.setWaveform(params.lfoWaveform);
+    // Update LFO parameters: Handled by ModulationEngine now
+    // lfo_.setRate(params.lfoRateHz);
+    // lfo_.setDepth(params.lfoDepth);
+    // lfo_.setWaveform(params.lfoWaveform);
 
     params_ = params;
   }
@@ -124,7 +126,9 @@ public:
     return algorithm_ ? algorithm_->getName() : "Unknown";
   }
 
-  void process(juce::AudioBuffer<float>& buffer, float wetMix = 1.0f) {
+  void process(juce::AudioBuffer<float>& buffer, float wetMix,
+               const float* modSignal = nullptr,
+               const float* masterModSignal = nullptr) {
     if (!params_.enabled || !prepared_ || bufferL_.empty())
       return;
 
@@ -141,20 +145,22 @@ public:
       // Get LFO-modulated delay time
       float modulatedTimeMs = params_.delayTimeMs;
 
-      // Add master LFO contribution (up to 10ms at full depth)
-      float masterMod = params_.masterLfoMod * 10.0f;
+      // Calculate total modulation (Local + Master)
+      float totalMod = 0.0f;
 
-      if (params_.lfoDepth > 0.0f) {
-        // LFO modulation adds up to 10ms variation at full depth
-        modulatedTimeMs = lfo_.getModulatedTime(params_.delayTimeMs, 10.0f);
-        modulatedTimeMs = std::max(1.0f, modulatedTimeMs); // Ensure positive
-      } else {
-        lfo_.tick(); // Still advance phase even if depth is 0
+      if (modSignal) {
+        totalMod += modSignal[i];
       }
 
-      // Combine master LFO and per-band LFO
-      modulatedTimeMs += masterMod;
-      modulatedTimeMs = std::max(1.0f, modulatedTimeMs); // Ensure positive
+      if (masterModSignal) {
+        totalMod += masterModSignal[i];
+      }
+
+      // Apply modulation (scale by 25ms for audible chorus/vibrato effect)
+      if (totalMod != 0.0f) {
+        modulatedTimeMs += (totalMod * 25.0f); // ±25ms modulation range
+        modulatedTimeMs = std::max(1.0f, modulatedTimeMs); // Ensure positive
+      }
 
       // Calculate delay in samples (with interpolation for smooth modulation)
       float delaySamplesF =
@@ -243,8 +249,8 @@ private:
   // Filter section for feedback path
   FilterSection filterSection_;
 
-  // LFO for delay time modulation
-  LFOModulator lfo_;
+  // LFO now external
+  // LFOModulator lfo_;
 };
 
 } // namespace uds

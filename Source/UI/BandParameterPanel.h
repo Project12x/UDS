@@ -2,8 +2,10 @@
 
 #include "NodeVisual.h"
 #include "Typography.h"
+
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_gui_basics/juce_gui_basics.h>
+
 
 namespace uds {
 
@@ -25,7 +27,7 @@ public:
   std::function<void(int bandIndex, bool solo)> onSoloChanged;
   std::function<void(int bandIndex, bool mute)> onMuteChanged;
 
-  BandParameterPanel(juce::AudioProcessorValueTreeState &apvts, int bandIndex)
+  BandParameterPanel(juce::AudioProcessorValueTreeState& apvts, int bandIndex)
       : apvts_(apvts), bandIndex_(bandIndex) {
     juce::String prefix = "band" + juce::String(bandIndex) + "_";
 
@@ -155,6 +157,8 @@ public:
     lfoWaveformBox_.addItem("Triangle", 3); // Index 2 = Triangle
     lfoWaveformBox_.addItem("Saw", 4);      // Index 3 = Saw
     lfoWaveformBox_.addItem("Square", 5);   // Index 4 = Square
+    lfoWaveformBox_.addItem("Brownian", 6); // Index 5 = Brownian
+    lfoWaveformBox_.addItem("Lorenz", 7);   // Index 6 = Lorenz
     lfoWaveformBox_.setColour(juce::ComboBox::backgroundColourId,
                               juce::Colour(0xff303030));
     lfoWaveformBox_.setColour(juce::ComboBox::textColourId,
@@ -270,7 +274,7 @@ public:
     muteButton_.removeListener(this);
   }
 
-  void buttonClicked(juce::Button *button) override {
+  void buttonClicked(juce::Button* button) override {
     if (button == &enableButton_) {
       updateEnabledState();
     } else if (button == &soloButton_) {
@@ -387,15 +391,15 @@ public:
 
     // LFO Waveform selector + Phase Invert + Ping-Pong (right half)
     auto lfoArea = row3;
-    pingPongButton_.setBounds(lfoArea.removeFromRight(28).reduced(2));
+    pingPongButton_.setBounds(lfoArea.removeFromRight(34).reduced(2));
     lfoArea.removeFromRight(2);
-    phaseInvertButton_.setBounds(lfoArea.removeFromRight(28).reduced(2));
+    phaseInvertButton_.setBounds(lfoArea.removeFromRight(34).reduced(2));
     lfoArea.removeFromRight(3);
-    lfoWaveformLabel_.setBounds(lfoArea.removeFromLeft(30));
+    lfoWaveformLabel_.setBounds(lfoArea.removeFromLeft(28));
     lfoWaveformBox_.setBounds(lfoArea.reduced(2, 3));
   }
 
-  void paint(juce::Graphics &g) override {
+  void paint(juce::Graphics& g) override {
     bool isEnabled = enableButton_.getToggleState();
     bool isMuted = muteButton_.getToggleState();
 
@@ -487,8 +491,8 @@ private:
     resized(); // Re-layout to adjust positions
   }
 
-  void setupSlider(juce::Slider &slider, juce::Label &label,
-                   const juce::String &name, double defaultValue = 0.0) {
+  void setupSlider(juce::Slider& slider, juce::Label& label,
+                   const juce::String& name, double defaultValue = 0.0) {
     slider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
     slider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 50, 15);
     slider.setColour(juce::Slider::rotarySliderFillColourId,
@@ -506,7 +510,7 @@ private:
     addAndMakeVisible(label);
   }
 
-  juce::AudioProcessorValueTreeState &apvts_;
+  juce::AudioProcessorValueTreeState& apvts_;
   int bandIndex_;
   float signalLevel_ = 0.0f;
 
