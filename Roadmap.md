@@ -47,14 +47,14 @@
 - [x] Per-band phase inversion toggle
 - [x] Per-band ping-pong delay toggle
 
-### 3.3 Preset System
+### 3.3 Preset System ✅
 
 - [x] State serialization for routing
 - [x] XML preset format
 - [x] Basic preset browser
-- [ ] Factory preset curation (Verify routing & MagicStomp accuracy)
-- [ ] Preset browser with tags
-- [ ] A/B comparison
+- [x] Factory preset curation (12 Holdsworth-inspired presets)
+- [x] Preset browser with tags (category submenus)
+- [x] A/B comparison (toggle button + menu)
 
 ### 3.4 UI Polish ✅
 
