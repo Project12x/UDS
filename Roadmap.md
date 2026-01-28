@@ -77,7 +77,6 @@
 - [x] Mono In / Mono Out
 - [x] Mono In / Stereo Out (Stereo Expander)
 - [x] Stereo In / Stereo Out
-- [ ] Randomize routing button
 - [x] Signal activity indicator
 - [x] Tempo sync modes
 - [x] Undo/redo for routing changes
@@ -154,59 +153,162 @@
 - [ ] Diffusion/Smear (Allpass filters for reverb textures)
 - [ ] Pitch Shifting (Crystals/Shimmer effect)
 
-### 5.7 Algorithm Refinement (Eventide Parity)
+### 5.7 Algorithm Refinement & DL4 Expansion
 
-> *Improve existing algorithms toward professional hardware quality*
+> *Improve existing algorithms toward professional hardware quality and expand DL4-style algorithm library*
 
-#### Phase A: Signalsmith Integration (MIT License)
+#### Phase A: DSP Quality Integration ✅
 
-> Signalsmith provides **cubic/sinc interpolation** for delay buffers - eliminates artifacts during LFO modulation, enabling smooth chorus effects.
+> Added **Signalsmith Stretch** (MIT) and **chowdsp_wdf** (BSD-3) libraries. Implemented **cubic Hermite interpolation** and **Jiles-Atherton hysteresis** for tape saturation.
 
-- [ ] Add `signalsmith-audio/dsp` via CMake FetchContent
-- [ ] Replace circular buffer in `DelayBandNode` with `signalsmith::delay::Delay`
-- [ ] Use sinc interpolation for modulated delay lines
-- [ ] Verify LFO-modulated chorus now audible
+- [x] Add `signalsmith-audio/stretch` via CMake FetchContent
+- [x] Add `chowdsp_wdf` via CMake FetchContent
+- [x] Replace linear interpolation with cubic Hermite in `DelayBandNode`
+- [x] Implement Jiles-Atherton hysteresis for Tape algorithm
 
-#### Phase B: FAUST Algorithm Modules (Commercial-safe generated code)
+#### Phase B: Improve Existing Delay Types
 
-> FAUST provides battle-tested DSP algorithms that compile to efficient C++. Avoids hand-coding subtle analog behaviors.
+> Each algorithm should have distinct, musical character
 
-- [ ] Analog Algorithm - FAUST bucket-brigade saturation, companding noise
-- [ ] Tape Algorithm - FAUST wow/flutter, head saturation curves
-- [ ] Compile .dsp files to C++ headers for integration
+**Digital** (currently clean pass-through)
+- [ ] Add optional soft-knee limiter for clean feedback control
+- [ ] Optional sub-octave generation for bass enhancement
+
+**Analog** (currently tanh saturation + LPF)
+- [ ] Add bucket-brigade companding artifacts
+- [ ] Clock noise simulation at high feedback
+- [ ] Variable filter drift/instability
+
+**Tape** (now has Jiles-Atherton hysteresis)
+- [ ] Add subtle wow/flutter via internal LFO
+- [ ] Head gap frequency response modeling
+- [ ] Tape speed variations (15ips vs 7.5ips character)
+
+**Lo-Fi** (currently bitcrush + sample rate reduction)
+- [ ] Add vinyl-style crackle/noise
+- [ ] Telephone/radio bandpass filter option
+- [ ] Pitch instability/warble
+
+#### Phase C: DL4 Algorithm Expansion
+
+> New algorithms inspired by Line 6 DL4 MKII
+
+- [ ] **Reverse** - Reversed audio chunks with crossfade
+- [ ] **Sweep Echo** - Delay with resonant filter sweep
+- [ ] **Tube Echo** - Emulate tube-based Echoplex character
+- [ ] **Multi-Head** - Simulated multi-head tape like Roland Space Echo
+- [ ] **Pattern** - Rhythmic multi-tap patterns
+- [ ] **Swell** - Auto-volume swells on repeats
+- [ ] **Ducking** - Delay ducks while playing, swells on silence
+- [ ] **Ice/Shimmer** - Pitch-shifted ethereal delays (Crystals-style)
+- [ ] **Trem** - Synchronized tremolo on repeats
+- [ ] **Filter** - Resonant filter sweep on repeats
+
+#### Phase D: Premium Feature Parity
+
+> Features expected on Eventide/Strymon-tier delays
+
+**Routing & Bypass**
+- [ ] Kill Dry mode (100% wet for parallel FX loops)
+- [ ] Trails/Spillover (delays continue when bypassed)
+- [ ] Analog dry path option (zero-latency dry signal)
+
+**Modulation Enhancements**
+- [ ] Per-repeat filter sweep (resonant LPF/HPF/BPF)
+- [ ] Per-repeat tremolo with LFO sync
+- [ ] Grit/saturation control per algorithm
+
+**Global Features**
+- [x] Global tap tempo with subdivisions
+- [ ] Expression pedal mapping (MIDI CC learn)
+- [ ] Preset morphing/crossfade
 
 #### Quality Benchmarks
 
-- [ ] Reference A/B Testing - Compare against Eventide TimeFactor/H9, Strymon Timeline
-- [ ] Modulation Response - Confirm chorus/vibrato effects match hardware quality
+- [ ] Reference A/B Testing - Compare against Eventide TimeFactor, Strymon Timeline
+- [ ] Modulation Response - Confirm modulated delays smooth with cubic interpolation
+
+#### Phase E: Commercial Polish ($30+ Value)
+
+> Features expected at premium price point
+
+**DSP Features**
+- [ ] **Freeze** - Capture delay buffer, loop infinitely with decay control
+- [ ] **Rhythm patterns** - Programmable multi-tap patterns like EchoBoy
+- [ ] **Diffusion** - Smear repeats into reverb-like textures
+
+**UI/UX**
+- [ ] Preset browser with tag filtering and search (✅ tags done)
+- [ ] Visual spectrum analyzer on output
+- [ ] Modulation visualization (show LFO affecting parameters)
+- [ ] Responsive layout for different window sizes
+- [ ] Dark/light theme toggle
+
+**Product Completion**
+- [ ] AAX format for Pro Tools compatibility
+- [ ] PDF user manual with algorithm descriptions
+- [ ] Preset library (50+ factory presets covering all algorithms)
+- [ ] Demo video / product page content
 
 ---
 
-## Future Development
+### Unique Selling Points
 
-*No committed timeline*
+> *What makes UDS worth $30-50*
 
-- LFO modulation depth/rate tuning (defer until delay algorithms improved)
-- Master LFO rate/depth derivation from band parameters
-- MIDI note-to-delay mapping
-- Granular delay mode
-- Convolution room simulation
-- MPE support
+1. **8-Band Delay Matrix** - No other plugin offers 8 independent delay lines with arbitrary routing
+2. **Per-Band Algorithm Selection** - Mix Tape + Digital + Analog in one plugin
+3. **Visual Routing Graph** - Modular-style patching with instant feedback
+4. **Yamaha UD Stomp DNA** - Based on legendary hardware architecture
 
 ---
 
 ## Maintenance Protocol
 
-**Each sub-phase**: Update State.md, comment pass, verify build  
-**Each major phase**: Update Architecture.md, walkthrough.md, Roadmap.md
+### Commit Triggers (Do ALL when ANY trigger fires)
+
+**Trigger 1: Feature Complete** - A roadmap checkbox can be marked `[x]`  
+**Trigger 2: 5+ Files Changed** - Accumulated edits across multiple files  
+**Trigger 3: User Requests** - User says "commit", "save", "push", etc.  
+**Trigger 4: Before Risky Change** - About to refactor or delete significant code  
+**Trigger 5: End of Conversation** - User says goodbye/thanks/done
+
+**Commit Actions:**
+- [ ] `git add -A && git commit -m "descriptive message"`
+- [ ] `git push origin main`
+- [ ] Update **State.md** with current progress
+
+### Documentation Triggers
+
+**After completing a roadmap phase (A, B, C, D, E):**
+- [ ] Update **CHANGELOG.md** with version bump
+- [ ] Update **README.md** if user-facing features changed  
+- [ ] Update **Architecture.md** if new classes/modules added
+- [ ] Mark roadmap items `[x]` complete
+- [ ] Create git tag: `git tag -a v0.X.0 -m "Phase X complete"`
+
+### Code Hygiene Triggers
+
+**After 3 features OR 500+ lines changed OR before major refactor:**
+- [ ] Comment pass - Add/update documentation comments
+- [ ] Dead code removal - Delete unused functions/variables
+- [ ] Warning cleanup - Address compiler warnings  
+- [ ] Test coverage - Add tests for new code paths
+
+### Quarterly Review (Every 3 months)
+
+- [ ] Dependency updates (JUCE, libraries)
+- [ ] Performance profiling
+- [ ] Memory leak check
 
 ---
 
 ## Quick Links
 
-| Doc | Purpose |
-| --- | ------- |
-| [State.md](State.md) | Current snapshot |
-| [Architecture.md](Architecture.md) | System design |
-| [README.md](README.md) | Build instructions |
-| [CHANGELOG.md](CHANGELOG.md) | Version history |
+| Doc | Purpose | Update Frequency |
+| --- | ------- | ---------------- |
+| [State.md](State.md) | Current snapshot | Per-session |
+| [Architecture.md](Architecture.md) | System design | Per-phase |
+| [README.md](README.md) | Build instructions | When features change |
+| [CHANGELOG.md](CHANGELOG.md) | Version history | Per-phase |
+| [Roadmap.md](Roadmap.md) | Development plan | Per-phase |

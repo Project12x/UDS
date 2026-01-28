@@ -55,7 +55,7 @@ public:
   /**
    * @brief Get display name for UI
    */
-  virtual const char *getName() const = 0;
+  virtual const char* getName() const = 0;
 };
 
 /**
@@ -83,7 +83,7 @@ public:
     return DelayAlgorithmType::Digital;
   }
 
-  const char *getName() const override { return "Digital"; }
+  const char* getName() const override { return "Digital"; }
 };
 
 /**
@@ -124,7 +124,7 @@ public:
     return DelayAlgorithmType::Analog;
   }
 
-  const char *getName() const override { return "Analog"; }
+  const char* getName() const override { return "Analog"; }
 
 private:
   double sampleRate_ = 44100.0;
@@ -133,24 +133,29 @@ private:
 };
 
 /**
- * @brief Tape delay - wow/flutter and head saturation
+ * @brief Tape delay - Jiles-Atherton hysteresis and head saturation
  *
  * Emulates tape echo machines with:
- * - Wow (slow pitch drift)
- * - Flutter (faster pitch wobble)
- * - Tape saturation (asymmetric)
- * - High-frequency loss
+ * - Jiles-Atherton magnetic hysteresis (history-dependent saturation)
+ * - Tape head high-frequency loss
+ * - Authentic "warmth" from asymmetric saturation
+ *
+ * Algorithm based on Jatin Chowdhury's published research (public domain math)
  */
 class TapeDelay : public DelayAlgorithm {
 public:
   void prepare(double sampleRate) override {
     sampleRate_ = sampleRate;
+    T_ = 1.0f / static_cast<float>(sampleRate);
 
-    // LFO for wow/flutter
-    wowPhase_ = 0.0f;
-    flutterPhase_ = 0.0f;
+    // Jiles-Atherton parameters (tuned for tape character)
+    Ms_ = 0.5f;     // Saturation magnetization
+    a_ = 350.0f;    // Shape parameter (affects sharpness)
+    c_ = 1.7f;      // Domain wall coupling
+    k_ = 40.0f;     // Coercivity (affects hysteresis loop width)
+    alpha_ = 0.01f; // Inter-domain coupling
 
-    // Lowpass for tape HF loss
+    // Lowpass for tape head HF loss (6kHz cutoff)
     float fc = 6000.0f;
     float wc = 2.0f * 3.14159f * fc / static_cast<float>(sampleRate);
     lpfCoeff_ = wc / (1.0f + wc);
@@ -159,27 +164,46 @@ public:
   }
 
   void reset() override {
+    M_prev_ = 0.0f;
+    H_prev_ = 0.0f;
     lpfState_ = 0.0f;
-    wowPhase_ = 0.0f;
-    flutterPhase_ = 0.0f;
   }
 
   float processSample(float sample) override {
-    // Tape saturation (asymmetric soft clip)
-    float x = sample * 1.5f;
-    float saturated;
-    if (x > 0.0f) {
-      saturated = 1.0f - std::exp(-x);
+    // Scale input to magnetic field strength H
+    float H = sample * 1000.0f; // Input gain for hysteresis
+
+    // Langevin function: L(x) = coth(x) - 1/x
+    float Q = (H + alpha_ * M_prev_) / a_;
+    float L;
+    if (std::abs(Q) < 0.001f) {
+      L = Q / 3.0f; // Taylor expansion for small x
     } else {
-      saturated = -1.0f + std::exp(x);
+      L = 1.0f / std::tanh(Q) - 1.0f / Q;
     }
-    saturated *= 0.85f;
 
-    // Lowpass filter (tape head HF loss)
-    lpfState_ += lpfCoeff_ * (saturated - lpfState_);
+    // Anhysteretic magnetization
+    float M_an = Ms_ * L;
 
-    // Note: Actual wow/flutter requires modulating delay time,
-    // which is handled in DelayBandNode. This just adds character.
+    // Calculate delta M (simplified real-time solver)
+    float dH = H - H_prev_;
+    float delta = (dH > 0.0f) ? 1.0f : -1.0f;
+
+    // Irreversible magnetization component
+    float dM_irr = (M_an - M_prev_) / (k_ * delta * (1.0f - c_) +
+                                       c_ * (M_an - M_prev_) / a_ + 1e-6f);
+
+    // Update magnetization with bounded rate
+    float M = M_prev_ + dM_irr * std::abs(dH) * T_ * 1000.0f;
+    M = std::clamp(M, -Ms_, Ms_);
+
+    // Store states for next sample
+    M_prev_ = M;
+    H_prev_ = H;
+
+    // Normalize output and apply lowpass (tape head HF loss)
+    float output = M / Ms_ * 0.85f;
+    lpfState_ += lpfCoeff_ * (output - lpfState_);
 
     return lpfState_;
   }
@@ -188,14 +212,24 @@ public:
     return DelayAlgorithmType::Tape;
   }
 
-  const char *getName() const override { return "Tape"; }
+  const char* getName() const override { return "Tape"; }
 
 private:
   double sampleRate_ = 44100.0;
-  float lpfCoeff_ = 0.5f;
+  float T_ = 1.0f / 44100.0f; // Sample period
+
+  // Jiles-Atherton parameters
+  float Ms_ = 0.5f;     // Saturation magnetization
+  float a_ = 350.0f;    // Shape parameter
+  float c_ = 1.7f;      // Domain wall coupling
+  float k_ = 40.0f;     // Coercivity
+  float alpha_ = 0.01f; // Inter-domain coupling
+
+  // State
+  float M_prev_ = 0.0f; // Previous magnetization
+  float H_prev_ = 0.0f; // Previous field
   float lpfState_ = 0.0f;
-  float wowPhase_ = 0.0f;
-  float flutterPhase_ = 0.0f;
+  float lpfCoeff_ = 0.5f;
 };
 
 /**
@@ -239,7 +273,7 @@ public:
     return DelayAlgorithmType::LoFi;
   }
 
-  const char *getName() const override { return "Lo-Fi"; }
+  const char* getName() const override { return "Lo-Fi"; }
 
 private:
   double sampleRate_ = 44100.0;

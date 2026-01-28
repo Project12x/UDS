@@ -25,12 +25,32 @@ FetchContent_Declare(
     GIT_TAG        v3.11.3
 )
 
+# Signalsmith Stretch - High-quality interpolation (MIT License)
+FetchContent_Declare(
+    signalsmith_stretch
+    GIT_REPOSITORY https://github.com/Signalsmith-Audio/signalsmith-stretch.git
+    GIT_TAG        main
+)
+
+# chowdsp_wdf - Wave Digital Filters for circuit modeling (BSD-3 License)
+FetchContent_Declare(
+    chowdsp_wdf
+    GIT_REPOSITORY https://github.com/Chowdhury-DSP/chowdsp_wdf.git
+    GIT_TAG        main
+)
+
 # Make libraries available
 message(STATUS "Fetching JUCE...")
 FetchContent_MakeAvailable(juce)
 
 message(STATUS "Fetching nlohmann/json...")
 FetchContent_MakeAvailable(json)
+
+message(STATUS "Fetching Signalsmith Stretch...")
+FetchContent_MakeAvailable(signalsmith_stretch)
+
+message(STATUS "Fetching chowdsp_wdf...")
+FetchContent_MakeAvailable(chowdsp_wdf)
 
 # ==============================================================================
 # ASIO SDK (Optional - for low-latency Windows audio)
@@ -143,6 +163,12 @@ target_link_libraries(UDS PRIVATE
     
     # External libraries
     nlohmann_json::nlohmann_json
+)
+
+# Header-only DSP libraries (include paths only)
+target_include_directories(UDS PRIVATE
+    ${signalsmith_stretch_SOURCE_DIR}
+    ${chowdsp_wdf_SOURCE_DIR}/include
 )
 
 # ==============================================================================

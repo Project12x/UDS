@@ -168,19 +168,49 @@ public:
       int delaySamples = static_cast<int>(delaySamplesF);
       float frac = delaySamplesF - static_cast<float>(delaySamples);
 
-      // Calculate read positions for linear interpolation
+      // Calculate read positions for cubic Hermite interpolation (4 points)
+      int readPos0 = writePos_ - delaySamples + 1; // One sample ahead
       int readPos1 = writePos_ - delaySamples;
       int readPos2 = readPos1 - 1;
+      int readPos3 = readPos1 - 2;
+
+      // Wrap positions
+      if (readPos0 < 0)
+        readPos0 += bufferSize;
       if (readPos1 < 0)
         readPos1 += bufferSize;
       if (readPos2 < 0)
         readPos2 += bufferSize;
+      if (readPos3 < 0)
+        readPos3 += bufferSize;
+      if (readPos0 >= bufferSize)
+        readPos0 -= bufferSize;
 
-      // Read delayed samples with linear interpolation
-      float delayedL = bufferL_[static_cast<size_t>(readPos1)] * (1.0f - frac) +
-                       bufferL_[static_cast<size_t>(readPos2)] * frac;
-      float delayedR = bufferR_[static_cast<size_t>(readPos1)] * (1.0f - frac) +
-                       bufferR_[static_cast<size_t>(readPos2)] * frac;
+      // Get 4 sample points for cubic interpolation
+      float y0L = bufferL_[static_cast<size_t>(readPos0)];
+      float y1L = bufferL_[static_cast<size_t>(readPos1)];
+      float y2L = bufferL_[static_cast<size_t>(readPos2)];
+      float y3L = bufferL_[static_cast<size_t>(readPos3)];
+
+      float y0R = bufferR_[static_cast<size_t>(readPos0)];
+      float y1R = bufferR_[static_cast<size_t>(readPos1)];
+      float y2R = bufferR_[static_cast<size_t>(readPos2)];
+      float y3R = bufferR_[static_cast<size_t>(readPos3)];
+
+      // Cubic Hermite interpolation coefficients
+      float c0L = y1L;
+      float c1L = 0.5f * (y2L - y0L);
+      float c2L = y0L - 2.5f * y1L + 2.0f * y2L - 0.5f * y3L;
+      float c3L = 0.5f * (y3L - y0L) + 1.5f * (y1L - y2L);
+
+      float c0R = y1R;
+      float c1R = 0.5f * (y2R - y0R);
+      float c2R = y0R - 2.5f * y1R + 2.0f * y2R - 0.5f * y3R;
+      float c3R = 0.5f * (y3R - y0R) + 1.5f * (y1R - y2R);
+
+      // Evaluate cubic polynomial: y = c0 + c1*t + c2*t^2 + c3*t^3
+      float delayedL = ((c3L * frac + c2L) * frac + c1L) * frac + c0L;
+      float delayedR = ((c3R * frac + c2R) * frac + c1R) * frac + c0R;
 
       // Get input
       float inputL = leftChannel[i];
