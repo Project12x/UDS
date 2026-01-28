@@ -1,7 +1,7 @@
 # UDS Roadmap
 
 > **Last Updated**: 2026-01-27  
-> **Status**: Phase 3.4 Complete
+> **Status**: Phase 3 In Progress
 
 *"The only delay where you can watch your sound travel"*
 
@@ -10,7 +10,7 @@
 ## Phase 1: Foundation ✅
 
 | Sub | Focus | Status |
-|-----|-------|--------|
+| --- | ----- | ------ |
 | 1.1 | Circular buffer delay, 8-band parallel | ✅ |
 | 1.2 | Basic parameter UI (2×4 grid) | ✅ |
 | 1.3 | VST3/Standalone builds | ✅ |
@@ -20,7 +20,7 @@
 ## Phase 2: Visual Routing ✅
 
 | Sub | Focus | Status |
-|-----|-------|--------|
+| --- | ----- | ------ |
 | 2.1 | Node editor canvas with bezier cables | ✅ |
 | 2.2 | Draggable nodes, input/output ports | ✅ |
 | 2.3 | RoutingGraph + topological sort | ✅ |
@@ -29,7 +29,7 @@
 
 ---
 
-## Phase 3: Production Ready 🔜
+## Phase 3: Production Ready
 
 ### 3.1 Delay Algorithms ✅
 
@@ -47,7 +47,7 @@
 - [x] Per-band phase inversion toggle
 - [x] Per-band ping-pong delay toggle
 
-### 3.3 Preset System ✅
+### 3.3 Preset System
 
 - [x] State serialization for routing
 - [x] XML preset format
@@ -63,20 +63,6 @@
 - [x] Algorithm selector dropdown
 - [x] Solo/mute buttons per band
 
-### 3.6 I/O Configurations
-
-- [ ] Mono In / Mono Out
-- [ ] Mono In / Stereo Out (Stereo Expander)
-- [ ] Stereo In / Stereo Out
-- [x] Signal activity indicator
-- [x] Tempo sync modes
-- [x] Undo/redo for routing changes
-- [x] Per-band ping-pong delay toggle
-- [x] Keyboard shortcuts (Ctrl+Z, Ctrl+Shift+Z)
-- [x] Double-click to reset sliders
-- [x] Slider tooltips
-- [ ] Randomize routing button
-
 ### 3.5 Engineering Best Practices ✅
 
 - [x] CHANGELOG.md
@@ -85,6 +71,19 @@
 - [x] Catch2 unit test scaffold
 - [x] 8-stage SafetyLimiter (equipment/hearing protection)
 - [x] Zero-warning builds
+
+### 3.6 I/O & UX
+
+- [x] Mono In / Mono Out
+- [x] Mono In / Stereo Out (Stereo Expander)
+- [x] Stereo In / Stereo Out
+- [ ] Randomize routing button
+- [x] Signal activity indicator
+- [x] Tempo sync modes
+- [x] Undo/redo for routing changes
+- [x] Keyboard shortcuts (Ctrl+Z, Ctrl+Shift+Z)
+- [x] Double-click to reset sliders
+- [x] Slider tooltips
 
 ---
 
@@ -95,7 +94,7 @@
 ### 4.1 Preset Recreation
 
 | Preset Type | Details | Depends On |
-|-------------|---------|------------|
+| ----------- | ------- | ---------- |
 | Stereo Enhanced Lead (×9) | 10-40ms delays, hard-panned L/R, chorus mod | 3.2 LFO |
 | Single Source Point Stereo | Two delays, one phase-inverted | 3.2 Phase |
 | Vintage Echo (×3) | 200-400ms, filter darkening | 3.1 Analog, 3.2 Filters |
@@ -133,8 +132,6 @@
 - [ ] Reverse delays
 - [ ] Freeze/hold mode
 
----
-
 ### 5.5 Generative Modulation (The "Living" System)
 
 #### Implemented ✅
@@ -145,22 +142,52 @@
 
 #### Planned: Musical Quantization
 
-- [ ] **Tempo Sync Mode** - Lock generative updates to host BPM
-- [ ] **Note Division Selector** - Quantize to 1/4, 1/8, 1/16, 1/32 notes
-- [ ] **Freeform vs Quantized Toggle** - Per-LFO choice
-- [ ] **Swing/Shuffle** - Humanize quantized timing
+- [ ] Tempo Sync Mode - Lock generative updates to host BPM
+- [ ] Note Division Selector - Quantize to 1/4, 1/8, 1/16, 1/32 notes
+- [ ] Freeform vs Quantized Toggle - Per-LFO choice
+- [ ] Swing/Shuffle - Humanize quantized timing
 - [ ] Conway's Game of Life (Grid-based modulation source)
 
-### 5.6 Advanced Algorithms (80% Eventide Target)
+### 5.6 Advanced Algorithms (New Algorithm Types)
 
 - [ ] Granular Delay (Grain size, density, pitch)
 - [ ] Diffusion/Smear (Allpass filters for reverb textures)
 - [ ] Pitch Shifting (Crystals/Shimmer effect)
 
+### 5.7 Algorithm Refinement (Eventide Parity)
+
+> *Improve existing algorithms toward professional hardware quality*
+
+#### Phase A: Signalsmith Integration (MIT License)
+
+> Signalsmith provides **cubic/sinc interpolation** for delay buffers - eliminates artifacts during LFO modulation, enabling smooth chorus effects.
+
+- [ ] Add `signalsmith-audio/dsp` via CMake FetchContent
+- [ ] Replace circular buffer in `DelayBandNode` with `signalsmith::delay::Delay`
+- [ ] Use sinc interpolation for modulated delay lines
+- [ ] Verify LFO-modulated chorus now audible
+
+#### Phase B: FAUST Algorithm Modules (Commercial-safe generated code)
+
+> FAUST provides battle-tested DSP algorithms that compile to efficient C++. Avoids hand-coding subtle analog behaviors.
+
+- [ ] Analog Algorithm - FAUST bucket-brigade saturation, companding noise
+- [ ] Tape Algorithm - FAUST wow/flutter, head saturation curves
+- [ ] Compile .dsp files to C++ headers for integration
+
+#### Quality Benchmarks
+
+- [ ] Reference A/B Testing - Compare against Eventide TimeFactor/H9, Strymon Timeline
+- [ ] Modulation Response - Confirm chorus/vibrato effects match hardware quality
+
+---
+
 ## Future Development
 
 *No committed timeline*
 
+- LFO modulation depth/rate tuning (defer until delay algorithms improved)
+- Master LFO rate/depth derivation from band parameters
 - MIDI note-to-delay mapping
 - Granular delay mode
 - Convolution room simulation
@@ -178,7 +205,7 @@
 ## Quick Links
 
 | Doc | Purpose |
-|-----|---------|
+| --- | ------- |
 | [State.md](State.md) | Current snapshot |
 | [Architecture.md](Architecture.md) | System design |
 | [README.md](README.md) | Build instructions |

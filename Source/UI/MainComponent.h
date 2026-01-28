@@ -32,13 +32,6 @@ public:
     // Enable keyboard focus for shortcuts
     setWantsKeyboardFocus(true);
 
-    // Title
-    titleLabel_.setText("UDS - Universal Delay System",
-                        juce::dontSendNotification);
-    titleLabel_.setJustificationType(juce::Justification::centred);
-    titleLabel_.setColour(juce::Label::textColourId, juce::Colours::white);
-    titleLabel_.setFont(juce::FontOptions(18.0f).withStyle("Bold"));
-    addAndMakeVisible(titleLabel_);
 
     // Preset browser panel
     addAndMakeVisible(presetBrowser_);
@@ -132,9 +125,9 @@ public:
     masterLfoDepthLabel_.setFont(juce::FontOptions(11.0f));
     addAndMakeVisible(masterLfoDepthLabel_);
 
-    // Master LFO Waveform combo
-    masterLfoWaveformCombo_.addItemList({"Sine", "Triangle", "Saw", "Square"},
-                                        1);
+    // Master LFO Waveform combo (0=None to disable)
+    masterLfoWaveformCombo_.addItemList(
+        {"None", "Sine", "Triangle", "Saw", "Square", "Brownian", "Lorenz"}, 1);
     addAndMakeVisible(masterLfoWaveformCombo_);
     masterLfoWaveformAttachment_ = std::make_unique<
         juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
@@ -146,6 +139,19 @@ public:
                                       juce::Colours::white);
     masterLfoWaveformLabel_.setFont(juce::FontOptions(11.0f));
     addAndMakeVisible(masterLfoWaveformLabel_);
+
+    // I/O Mode combo (Auto, Mono, Mono→Stereo, Stereo)
+    ioModeCombo_.addItemList({"Auto", "Mono", "Mono→Stereo", "Stereo"}, 1);
+    addAndMakeVisible(ioModeCombo_);
+    ioModeAttachment_ = std::make_unique<
+        juce::AudioProcessorValueTreeState::ComboBoxAttachment>(apvts, "ioMode",
+                                                                ioModeCombo_);
+
+    ioModeLabel_.setText("I/O", juce::dontSendNotification);
+    ioModeLabel_.setJustificationType(juce::Justification::centred);
+    ioModeLabel_.setColour(juce::Label::textColourId, juce::Colours::white);
+    ioModeLabel_.setFont(juce::FontOptions(11.0f));
+    addAndMakeVisible(ioModeLabel_);
 
     // Tab buttons
     bandsTabButton_.setButtonText("Bands");
@@ -237,6 +243,11 @@ public:
     dryPanLabel_.setBounds(dryPanArea.removeFromTop(16));
     dryPanSlider_.setBounds(dryPanArea);
 
+    // I/O Mode control
+    auto ioModeArea = headerRow.removeFromRight(80);
+    ioModeLabel_.setBounds(ioModeArea.removeFromTop(16));
+    ioModeCombo_.setBounds(ioModeArea.reduced(2, 8));
+
     // Master LFO controls (next to mix)
     auto masterLfoWaveArea = headerRow.removeFromRight(70);
     masterLfoWaveformLabel_.setBounds(masterLfoWaveArea.removeFromTop(16));
@@ -256,18 +267,20 @@ public:
     routingTabButton_.setBounds(tabArea.removeFromLeft(100));
 
     // Preset buttons (visible only in routing view)
-    auto presetArea = headerRow.removeFromRight(240);
-    parallelButton_.setBounds(presetArea.removeFromLeft(60));
-    seriesButton_.setBounds(presetArea.removeFromLeft(60));
-    undoButton_.setBounds(presetArea.removeFromLeft(60));
-    redoButton_.setBounds(presetArea.removeFromLeft(60));
+    // Preset buttons (visible only in routing view)
+    if (showRoutingView_) {
+      auto presetArea = headerRow.removeFromRight(240);
+      parallelButton_.setBounds(presetArea.removeFromLeft(60));
+      seriesButton_.setBounds(presetArea.removeFromLeft(60));
+      undoButton_.setBounds(presetArea.removeFromLeft(60));
+      redoButton_.setBounds(presetArea.removeFromLeft(60));
+    }
+
     parallelButton_.setVisible(showRoutingView_);
     seriesButton_.setVisible(showRoutingView_);
     undoButton_.setVisible(showRoutingView_);
     redoButton_.setVisible(showRoutingView_);
 
-    // Title in center
-    titleLabel_.setBounds(headerRow.removeFromLeft(220));
 
     // Metronome for standalone testing (before preset browser)
     metronome_.setBounds(headerRow.removeFromLeft(200).reduced(5, 8));
@@ -298,7 +311,27 @@ public:
   }
 
   void paint(juce::Graphics& g) override {
-    g.fillAll(juce::Colour(0xff1a1a1a));
+    // 1. Background Gradient (Dark Industrial)
+    juce::Colour color1 = juce::Colour(0xff2b2b2b); // Lighter Charcoal
+    juce::Colour color2 = juce::Colour(0xff0d0d0d); // Deep Black
+    // Diagonal gradient for depth
+    juce::ColourGradient grad(color1, 0, 0, color2, (float)getWidth(),
+                              (float)getHeight(), false);
+    g.setGradientFill(grad);
+    g.fillAll();
+
+    // 2. Technical Grid Overlay
+    g.setColour(
+        juce::Colours::white.withAlpha(0.04f)); // Very faint technical lines
+    const int gridSize = 40;
+
+    // Vertical lines
+    for (int x = 0; x < getWidth(); x += gridSize)
+      g.drawVerticalLine(x, 0.0f, (float)getHeight());
+
+    // Horizontal lines
+    for (int y = 0; y < getHeight(); y += gridSize)
+      g.drawHorizontalLine(y, 0.0f, (float)getWidth());
   }
 
   /**
@@ -403,7 +436,7 @@ private:
   RoutingGraph& routingGraph_;
   PresetManager& presetManager_;
 
-  juce::Label titleLabel_;
+
   juce::Slider mixSlider_;
   juce::Label mixLabel_;
   std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>
@@ -432,6 +465,12 @@ private:
       masterLfoDepthAttachment_;
   std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment>
       masterLfoWaveformAttachment_;
+
+  // I/O Mode controls
+  juce::ComboBox ioModeCombo_;
+  juce::Label ioModeLabel_;
+  std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment>
+      ioModeAttachment_;
 
   juce::TextButton bandsTabButton_;
   juce::TextButton routingTabButton_;

@@ -63,15 +63,38 @@ public:
 
     auto totalNumInputChannels = getTotalNumInputChannels();
     auto totalNumOutputChannels = getTotalNumOutputChannels();
+    auto numSamples = buffer.getNumSamples();
 
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
-      buffer.clear(i, 0, buffer.getNumSamples());
+      buffer.clear(i, 0, numSamples);
 
-    // Expand Mono Input to Stereo Output if needed
-    // This allows panning to work correctly even with a mono input
-    if (totalNumInputChannels == 1 && totalNumOutputChannels == 2) {
-      buffer.copyFrom(1, 0, buffer, 0, 0, buffer.getNumSamples());
+    // Get I/O mode: 0=Auto, 1=Mono, 2=Mono→Stereo, 3=Stereo
+    int ioMode =
+        static_cast<int>(parameters_.getRawParameterValue("ioMode")->load());
+
+    // Apply I/O mode processing
+    if (ioMode == 1) {
+      // Mono: Mix input to mono, process, output mono on both channels
+      if (totalNumInputChannels >= 2) {
+        // Mix L+R to mono
+        buffer.addFrom(0, 0, buffer, 1, 0, numSamples, 0.5f);
+        buffer.applyGain(0, 0, numSamples, 0.5f);
+      }
+      // After processing, we'll copy ch0 to ch1 at the end
+    } else if (ioMode == 2 || (ioMode == 0 && totalNumInputChannels == 1 &&
+                               totalNumOutputChannels == 2)) {
+      // Mono→Stereo: Expand mono input to stereo buffer
+      if (totalNumInputChannels == 1 && totalNumOutputChannels >= 2) {
+        buffer.copyFrom(1, 0, buffer, 0, 0, numSamples);
+      } else if (totalNumInputChannels >= 2) {
+        // Even with stereo input, treat as mono then expand
+        buffer.addFrom(0, 0, buffer, 1, 0, numSamples, 0.5f);
+        buffer.applyGain(0, 0, numSamples, 0.5f);
+        buffer.copyFrom(1, 0, buffer, 0, 0, numSamples);
+      }
     }
+    // ioMode == 3 (Stereo) or ioMode == 0 (Auto) with stereo: no preprocessing
+    // needed
 
     // Get BPM from host, or use internal metronome BPM for standalone
     double bpm = internalBpm_.load(); // Default to internal metronome BPM
@@ -96,7 +119,17 @@ public:
         parameters_.getRawParameterValue("masterLfoDepth")->load() / 100.0f;
     int masterLfoWaveform = static_cast<int>(
         parameters_.getRawParameterValue("masterLfoWaveform")->load());
-    delayMatrix_.setMasterLfo(masterLfoRate, masterLfoDepth, masterLfoWaveform);
+
+    // Master LFO waveform: 0=None, 1=Sine, 2=Triangle, 3=Saw, 4=Square,
+    // 5=Brownian, 6=Lorenz
+    if (masterLfoWaveform == 0) {
+      // None: disable master LFO by setting depth to 0
+      masterLfoDepth = 0.0f;
+    }
+    // Waveform index for setMasterLfo: 0=Sine, 1=Triangle, etc. (shift by -1
+    // when not None)
+    int adjustedWaveform = (masterLfoWaveform > 0) ? masterLfoWaveform - 1 : 0;
+    delayMatrix_.setMasterLfo(masterLfoRate, masterLfoDepth, adjustedWaveform);
 
     // Note division multipliers for tempo sync
     static const float noteDivisionMultipliers[] = {
@@ -215,6 +248,12 @@ public:
     for (int band = 0; band < 8; ++band) {
       bandLevels_[band].store(delayMatrix_.getBandLevel(band));
     }
+
+    // Apply mono output mode post-processing
+    if (ioMode == 1 && totalNumOutputChannels >= 2) {
+      // Mono: Copy processed channel 0 to channel 1
+      buffer.copyFrom(1, 0, buffer, 0, 0, numSamples);
+    }
   }
 
   juce::AudioProcessorEditor* createEditor() override;
@@ -314,6 +353,15 @@ private:
         juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 50.0f,
         juce::AudioParameterFloatAttributes().withLabel("%")));
 
+    // I/O Configuration mode
+    // Auto: Use host-negotiated bus layout
+    // Mono: Force mono in/out
+    // MonoToStereo: Force mono input, stereo output (stereo expander)
+    // Stereo: Force stereo in/out
+    params.push_back(std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID{"ioMode", 1}, "I/O Mode",
+        juce::StringArray{"Auto", "Mono", "Mono→Stereo", "Stereo"}, 0));
+
     // Dry level (for MagicStomp presets that attenuate dry signal)
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID{"dryLevel", 1}, "Dry Level",
@@ -338,8 +386,8 @@ private:
 
     params.push_back(std::make_unique<juce::AudioParameterChoice>(
         juce::ParameterID{"masterLfoWaveform", 1}, "Master LFO Waveform",
-        juce::StringArray{"Sine", "Triangle", "Saw", "Square", "Brownian",
-                          "Lorenz"},
+        juce::StringArray{"None", "Sine", "Triangle", "Saw", "Square",
+                          "Brownian", "Lorenz"},
         0));
 
     // Per-band parameters (8 bands)

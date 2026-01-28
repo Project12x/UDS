@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **I/O Configuration selector** (Auto, Mono, Mono→Stereo, Stereo modes)
+- **Master LFO "None" option** to disable master modulation
 - Per-band ping-pong delay toggle (L/R alternation)
 - Keyboard shortcuts: Ctrl+Z (Undo), Ctrl+Shift+Z (Redo) for routing
 - Double-click to reset sliders to default values
