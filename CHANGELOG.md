@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Cubic Hermite interpolation** for smooth modulated delays (replaces linear)
+- **Jiles-Atherton hysteresis** for authentic tape saturation
+- **Signalsmith Stretch** library (MIT) for future DSP improvements
+- **chowdsp_wdf** library (BSD-3) for future waveguide filters
+- **HANDOFF.md** for session continuity documentation
 - **A/B Comparison** - Store/recall two preset states for instant comparison
 - **Preset Tag Filtering** - Browse presets by category (Stereo Lead, Rhythmic, Vintage)
 - **I/O Configuration selector** (Auto, Mono, Mono→Stereo, Stereo modes)

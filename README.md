@@ -78,7 +78,8 @@ cmake --build build --config Release --target UDS_Tests
 ## Documentation
 
 | Document | Purpose |
-|----------|---------|\n| [HANDOFF.md](HANDOFF.md) | Quick context for new sessions |
+|----------|---------|
+| [HANDOFF.md](HANDOFF.md) | Quick context for new sessions |
 | [Roadmap.md](Roadmap.md) | Phased development plan |
 | [State.md](State.md) | Current project state |
 | [Architecture.md](Architecture.md) | System design & components |
