@@ -179,7 +179,7 @@ target_link_libraries(UDS PRIVATE
 # Header-only DSP libraries (include paths only)
 target_include_directories(UDS PRIVATE
     ${signalsmith_stretch_SOURCE_DIR}
-    ${signalsmith_dsp_SOURCE_DIR}
+    ${signalsmith_dsp_SOURCE_DIR}/include
     ${chowdsp_wdf_SOURCE_DIR}/include
 )
 
