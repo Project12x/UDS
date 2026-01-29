@@ -170,6 +170,16 @@ public:
         juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
         apvts_, prefix + "lfoWaveform", lfoWaveformBox_);
 
+    // =========================================
+    // Attack Envelope (Volume Swell)
+    // =========================================
+    setupSlider(attackSlider_, attackLabel_, "Attack");
+    attackSlider_.setTextValueSuffix(" ms");
+    attackSlider_.setTooltip("Attack time for volume swell effect (0 = instant)");
+    attackAttachment_ =
+        std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+            apvts_, prefix + "attack", attackSlider_);
+
     // Phase Invert toggle - using "INV" text for better rendering
     phaseInvertButton_.setButtonText("INV");
     phaseInvertButton_.setColour(juce::TextButton::buttonColourId,
@@ -359,7 +369,7 @@ public:
 
     bounds.removeFromTop(3);
 
-    // =============== Row 2: Filter and LFO parameters ===============
+    // =============== Row 2: Filter, Attack, and LFO parameters ===============
     auto row2 = bounds.removeFromTop(cellHeight);
 
     cell = row2.removeFromLeft(cellWidth);
@@ -371,12 +381,12 @@ public:
     loCutSlider_.setBounds(cell);
 
     cell = row2.removeFromLeft(cellWidth);
-    lfoRateLabel_.setBounds(cell.removeFromTop(labelHeight));
-    lfoRateSlider_.setBounds(cell);
+    attackLabel_.setBounds(cell.removeFromTop(labelHeight));
+    attackSlider_.setBounds(cell);
 
     cell = row2.removeFromLeft(cellWidth);
-    lfoDepthLabel_.setBounds(cell.removeFromTop(labelHeight));
-    lfoDepthSlider_.setBounds(cell);
+    lfoRateLabel_.setBounds(cell.removeFromTop(labelHeight));
+    lfoRateSlider_.setBounds(cell);
 
     bounds.removeFromTop(3);
 
@@ -535,6 +545,10 @@ private:
   juce::Label lfoWaveformLabel_;
   juce::TextButton phaseInvertButton_;
 
+  // Attack envelope (volume swell)
+  juce::Slider attackSlider_;
+  juce::Label attackLabel_;
+
   std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>
       timeAttachment_;
   std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>
@@ -563,6 +577,11 @@ private:
       lfoWaveformAttachment_;
   std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment>
       phaseInvertAttachment_;
+
+  // Attack envelope attachment
+  std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>
+      attackAttachment_;
+
   juce::TextButton pingPongButton_;
   std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment>
       pingPongAttachment_;

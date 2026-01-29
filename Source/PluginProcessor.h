@@ -195,6 +195,8 @@ public:
       params.lfoDepth =
           parameters_.getRawParameterValue(prefix + "lfoDepth")->load() /
           100.0f;
+      params.attackTimeMs =
+          parameters_.getRawParameterValue(prefix + "attack")->load();
 
       // LFO waveform (0=None, 1=Sine, 2=Triangle, 3=Saw, 4=Square, 5=Brownian,
       // 6=Lorenz)
@@ -433,6 +435,12 @@ private:
           juce::ParameterID{prefix + "lfoDepth", 2}, bandName + "LFO Depth",
           juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 0.0f,
           juce::AudioParameterFloatAttributes().withLabel("%")));
+
+      // Attack envelope for volume swell effects (0 = instant, >0 = swell)
+      params.push_back(std::make_unique<juce::AudioParameterFloat>(
+          juce::ParameterID{prefix + "attack", 1}, bandName + "Attack",
+          juce::NormalisableRange<float>(0.0f, 2000.0f, 1.0f, 0.4f), 0.0f,
+          juce::AudioParameterFloatAttributes().withLabel("ms")));
 
       params.push_back(std::make_unique<juce::AudioParameterChoice>(
           juce::ParameterID{prefix + "lfoWaveform", 2},

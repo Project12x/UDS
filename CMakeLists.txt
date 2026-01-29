@@ -32,6 +32,13 @@ FetchContent_Declare(
     GIT_TAG        main
 )
 
+# Signalsmith DSP - Envelopes, filters, delays, and utilities (MIT License)
+FetchContent_Declare(
+    signalsmith_dsp
+    GIT_REPOSITORY https://github.com/Signalsmith-Audio/dsp.git
+    GIT_TAG        main
+)
+
 # chowdsp_wdf - Wave Digital Filters for circuit modeling (BSD-3 License)
 FetchContent_Declare(
     chowdsp_wdf
@@ -48,6 +55,9 @@ FetchContent_MakeAvailable(json)
 
 message(STATUS "Fetching Signalsmith Stretch...")
 FetchContent_MakeAvailable(signalsmith_stretch)
+
+message(STATUS "Fetching Signalsmith DSP...")
+FetchContent_MakeAvailable(signalsmith_dsp)
 
 message(STATUS "Fetching chowdsp_wdf...")
 FetchContent_MakeAvailable(chowdsp_wdf)
@@ -112,6 +122,7 @@ target_sources(UDS PRIVATE
     Source/PluginEditor.h
     
     # Core DSP (header-only)
+    Source/Core/AttackEnvelope.h
     Source/Core/DelayAlgorithm.h
     Source/Core/DelayBandNode.h
     Source/Core/DelayMatrix.h
@@ -168,6 +179,7 @@ target_link_libraries(UDS PRIVATE
 # Header-only DSP libraries (include paths only)
 target_include_directories(UDS PRIVATE
     ${signalsmith_stretch_SOURCE_DIR}
+    ${signalsmith_dsp_SOURCE_DIR}
     ${chowdsp_wdf_SOURCE_DIR}/include
 )
 

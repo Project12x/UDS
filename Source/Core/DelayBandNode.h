@@ -1,5 +1,6 @@
 #pragma once
 
+#include "AttackEnvelope.h"
 #include "DelayAlgorithm.h"
 #include "FilterSection.h"
 #include "GenerativeModulator.h"
@@ -26,7 +27,7 @@ struct DelayBandParams {
   float loCutHz = 80.0f;
   float lfoRateHz = 1.0f;
   float lfoDepth = 0.0f;
-
+  float attackTimeMs = 0.0f; // 0 = instant (no swell), >0 = volume swell effect
 
   ModulationType modulationType = ModulationType::Sine;
   // float masterLfoMod = 0.0f; // REMOVED: Managed externally via buffer
@@ -72,8 +73,8 @@ public:
     // Prepare filter section
     filterSection_.prepare(sampleRate);
 
-    // Prepare filter section
-    filterSection_.prepare(sampleRate);
+    // Prepare attack envelope for volume swell
+    attackEnvelope_.prepare(sampleRate);
 
     prepared_ = true;
   }
@@ -90,6 +91,7 @@ public:
     }
 
     filterSection_.reset();
+    attackEnvelope_.reset();
   }
 
   void setParams(const DelayBandParams& params) {
@@ -105,11 +107,13 @@ public:
     filterSection_.setHiCutFrequency(params.hiCutHz);
     filterSection_.setLoCutFrequency(params.loCutHz);
 
-    // Update LFO parameters
     // Update LFO parameters: Handled by ModulationEngine now
     // lfo_.setRate(params.lfoRateHz);
     // lfo_.setDepth(params.lfoDepth);
     // lfo_.setWaveform(params.lfoWaveform);
+
+    // Update attack envelope for volume swell
+    attackEnvelope_.setAttackTimeMs(params.attackTimeMs);
 
     params_ = params;
   }
@@ -255,6 +259,12 @@ public:
         wetR = -wetR;
       }
 
+      // Apply attack envelope for volume swell effect
+      // Uses input level to trigger, applies gain to wet signal
+      if (params_.attackTimeMs > 0.0f) {
+        attackEnvelope_.processBlock(inputL, inputR, wetL, wetR);
+      }
+
       // Output: dry + wet
       leftChannel[i] = inputL + wetL * wetMix;
       if (numChannels > 1)
@@ -278,6 +288,9 @@ private:
 
   // Filter section for feedback path
   FilterSection filterSection_;
+
+  // Attack envelope for volume swell effects
+  AttackEnvelope attackEnvelope_;
 
   // LFO now external
   // LFOModulator lfo_;
