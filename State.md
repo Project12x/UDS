@@ -1,7 +1,7 @@
 # UDS Project State
 
-> **Snapshot Date**: 2026-01-28  
-> **Current Phase**: Phase 5 In Progress (DSP Foundations)
+> **Snapshot Date**: 2026-01-30  
+> **Current Phase**: Phase 5.5 - Dynamic Band Count In Progress
 
 ---
 
@@ -12,19 +12,18 @@
 | **Build** | ✅ Compiles, zero warnings |
 | **Phase 1-3** | ✅ Complete |
 | **Phase 4** | 3/4 presets done, chart pending |
-| **Phase 5** | 4/7 foundations complete |
-| **Uncommitted Changes** | Roadmap refactor, needs commit |
+| **Phase 5** | Expression mapping ✅, Dynamic bands in progress |
+| **Dynamic Bands** | Core constants ✅, right-click menu pending |
 
 ---
 
 ## Recent Changes (This Session)
 
-- Restructured Roadmap from bloated Phase 5 into Phases 5-8
-- Added gap analysis features: stereo width, copy/paste band, tape stop, CLAP
-- Added Signalsmith Stretch + chowdsp_wdf libraries
-- Implemented cubic Hermite interpolation in DelayBandNode
-- Implemented Jiles-Atherton hysteresis for Tape algorithm
-- Created comprehensive maintenance protocol with commit triggers
+- Implemented dynamic band count foundation (MAX_BANDS=12)
+- Increased max delay from 700ms to 10 seconds per band
+- Expanded color arrays to support 12 bands
+- Updated Roadmap with Phase 5.5 (Dynamic Band Count)
+- Marked expression pedal mapping (77 params) complete
 
 ---
 
@@ -138,7 +137,8 @@ Tests/: 2 files (DSPTests.cpp, CMakeLists.txt)
 
 ## Next Actions
 
-1. Commit current roadmap refactor
-2. Create parameter comparison chart (UD Stomp → UDS)
-3. Implement attack envelope for Volume Pedal Swell FX presets
-4. Add stereo width control
+1. Implement active band tracking in RoutingGraph
+2. Add right-click context menu (add/remove bands)
+3. Wire band panel visibility to active band set
+4. Display "X/12 Bands" count on main screen
+5. Serialize active bands in presets

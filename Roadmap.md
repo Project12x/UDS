@@ -1,9 +1,22 @@
 # UDS Roadmap
 
-> **Last Updated**: 2026-01-28  
-> **Status**: Phase 3 Complete, Phase 4-5 In Progress
+> **Last Updated**: 2026-01-30  
+> **Current Focus**: Phase 5 — Dynamic Band Count
 
 *"The only delay where you can watch your sound travel"*
+
+## Progress Overview
+
+| Phase | Focus | Status |
+|-------|-------|--------|
+| 1 | Foundation | ✅ Complete |
+| 2 | Visual Routing | ✅ Complete |
+| 3 | Production Ready | ✅ Complete |
+| 4 | Holdsworth Tribute | 🔶 3/4 Done |
+| 5 | DSP Foundations | 🔶 In Progress |
+| 6 | Algorithm Library | ⬜ Planned |
+| 7 | Premium Features | ⬜ Planned |
+| 8 | Commercial Release | ⬜ Planned |
 
 ---
 
@@ -115,16 +128,36 @@
 - [x] Signalsmith Stretch + chowdsp_wdf libraries
 - [x] Jiles-Atherton hysteresis for Tape algorithm
 - [x] Brownian Motion + Lorenz Attractor LFOs
+- [x] Expression pedal mapping (MIDI CC learn, 77 parameters)
 
 **Remaining**
 
-- [ ] Attack envelope (enables Volume Pedal Swell FX presets)
-- [ ] MIDI CC infrastructure (enables expression mapping)
-- [ ] Algorithm plugin architecture (clean interface for new algorithms)
+- [ ] Attack envelope *(blocks: Phase 4 Volume Pedal Swell FX)*
+- [ ] Algorithm plugin architecture *(blocks: Phase 6 new algorithms)*
+
+### 5.5 Dynamic Band Count (IN PROGRESS)
+
+> *Configurable 1-12 bands with right-click add/remove*
+
+**Completed ✅**
+
+- [x] MAX_BANDS=12 constant, 12 bands always allocated
+- [x] 10-second max delay per band (up from 700ms)
+- [x] Color arrays expanded to 12 bands
+
+**In Progress**
+
+- [ ] Active band tracking in RoutingGraph
+- [ ] Right-click context menu: add/remove bands
+- [ ] Band panel visibility (show/hide based on active count)
+- [ ] Display "8/12 Bands" count on main screen
+- [ ] Preset serialization for active band list
 
 ---
 
 ## Phase 6: Algorithm Library
+
+> ⚠️ **Blocked by**: Phase 5 Algorithm plugin architecture
 
 ### 6.1 Improve Existing Algorithms
 
@@ -178,8 +211,8 @@
 ### 7.3 Global Features
 
 - [x] Global tap tempo with subdivisions
+- [x] Expression pedal mapping (MIDI CC learn, right-click assign)
 - [ ] **Stereo width control** (missing from competitors)
-- [ ] Expression pedal mapping (MIDI CC learn)
 - [ ] Preset morphing/crossfade
 
 ### 7.4 Workflow & UX
@@ -229,10 +262,11 @@
 
 > *What makes UDS worth $30-50*
 
-1. **8-Band Delay Matrix** - No other plugin offers 8 independent delay lines with arbitrary routing
+1. **12-Band Delay Matrix** - Configurable 1-12 independent delay lines with arbitrary routing
 2. **Per-Band Algorithm Selection** - Mix Tape + Digital + Analog in one plugin
 3. **Visual Routing Graph** - Modular-style patching with instant feedback
 4. **Yamaha UD Stomp DNA** - Based on legendary hardware architecture
+5. **77-Parameter Expression Control** - Full MIDI CC mapping with range training
 
 ---
 
