@@ -3,6 +3,7 @@
 #include "../Core/RoutingGraph.h"
 #include "../Core/RoutingUndoManager.h"
 #include "BandParameterPanel.h"
+#include "ExpressionSlider.h"
 #include "NodeEditorCanvas.h"
 #include "PresetBrowserPanel.h"
 #include "StandaloneMetronome.h"
@@ -11,6 +12,7 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 
 #include <array>
+#include <functional>
 #include <memory>
 
 
@@ -36,7 +38,8 @@ public:
     // Preset browser panel
     addAndMakeVisible(presetBrowser_);
 
-    // Global mix slider
+    // Global mix slider (with expression pedal support)
+    mixSlider_.setParameterId("mix");
     mixSlider_.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
     mixSlider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 60, 18);
     mixSlider_.setColour(juce::Slider::rotarySliderFillColourId,
@@ -437,7 +440,7 @@ private:
   PresetManager& presetManager_;
 
 
-  juce::Slider mixSlider_;
+  ExpressionSlider mixSlider_;
   juce::Label mixLabel_;
   std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>
       mixAttachment_;
@@ -496,6 +499,23 @@ public:
       if (bandPanels_[i])
         bandPanels_[i]->setSignalLevel(levels[i]);
     }
+  }
+
+  // Wire expression pedal callbacks for all ExpressionSliders
+  void setExpressionCallbacks(
+      std::function<void(const juce::String&, float, float)> onAssign,
+      std::function<void()> onClear,
+      std::function<bool(const juce::String&)> hasMapping) {
+    // Wire up the Mix slider
+    mixSlider_.onAssignExpression = [onAssign](const juce::String& paramId) {
+      // Default range: 0-100 for mix
+      onAssign(paramId, 0.0f, 100.0f);
+    };
+    mixSlider_.onClearExpression = onClear;
+    mixSlider_.isExpressionAssigned = [hasMapping, this]() {
+      return hasMapping(mixSlider_.getParameterId());
+    };
+    // TODO: Wire up other sliders (dryLevel, masterLfoRate, etc.)
   }
 };
 

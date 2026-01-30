@@ -6,6 +6,18 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 
 #include <array>
+#include <mutex>
+#include <optional>
+
+/**
+ * @brief Mapping from expression pedal to a parameter
+ */
+struct ExpressionMapping {
+  juce::String paramId;
+  float minValue = 0.0f; // Value when pedal at 0
+  float maxValue = 1.0f; // Value when pedal at 127
+  bool inverted = false;
+};
 
 
 /**
@@ -76,6 +88,23 @@ public:
         int cc = m.getControllerNumber();
         if (cc == 11 || cc == 4) { // Expression or Foot Pedal
           expressionValue_.store(m.getControllerValue() / 127.0f);
+        }
+      }
+    }
+
+    // --- Apply Expression to Mapped Parameter ---
+    {
+      std::lock_guard<std::mutex> lock(expressionMutex_);
+      if (expressionMapping_) {
+        if (auto* param =
+                parameters_.getParameter(expressionMapping_->paramId)) {
+          float exprNorm = expressionValue_.load();
+          float targetValue =
+              expressionMapping_->minValue +
+              (expressionMapping_->maxValue - expressionMapping_->minValue) *
+                  exprNorm;
+          // Convert to 0-1 range and set (this is safe, updates atomically)
+          param->setValueNotifyingHost(param->convertTo0to1(targetValue));
         }
       }
     }
@@ -370,6 +399,27 @@ public:
   // Accessors for preset management
   juce::AudioProcessorValueTreeState& getAPVTS() { return parameters_; }
 
+  // Expression pedal mapping API
+  void setExpressionMapping(const juce::String& paramId, float minVal,
+                            float maxVal) {
+    std::lock_guard<std::mutex> lock(expressionMutex_);
+    expressionMapping_ = ExpressionMapping{paramId, minVal, maxVal, false};
+  }
+  void clearExpressionMapping() {
+    std::lock_guard<std::mutex> lock(expressionMutex_);
+    expressionMapping_.reset();
+  }
+  std::optional<ExpressionMapping> getExpressionMapping() const {
+    std::lock_guard<std::mutex> lock(expressionMutex_);
+    return expressionMapping_;
+  }
+  bool hasExpressionMapping(const juce::String& paramId) const {
+    std::lock_guard<std::mutex> lock(expressionMutex_);
+    return expressionMapping_.has_value() &&
+           expressionMapping_->paramId == paramId;
+  }
+  float getExpressionValue() const { return expressionValue_.load(); }
+
 private:
   juce::AudioProcessorValueTreeState parameters_;
   uds::DelayMatrix delayMatrix_;
@@ -380,6 +430,10 @@ private:
 
   // Expression pedal value (0-1 normalized, updated from MIDI CC)
   std::atomic<float> expressionValue_{1.0f};
+
+  // Expression pedal mapping (which parameter to control)
+  std::optional<ExpressionMapping> expressionMapping_;
+  mutable std::mutex expressionMutex_; // Protects expressionMapping_
 
   static juce::AudioProcessorValueTreeState::ParameterLayout
   createParameterLayout() {

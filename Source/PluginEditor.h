@@ -24,6 +24,16 @@ public:
         p.getParameters(), p.getRoutingGraph(), *presetManager_);
     addAndMakeVisible(*mainComponent_);
 
+    // Wire expression pedal callbacks to processor
+    mainComponent_->setExpressionCallbacks(
+        [this](const juce::String& paramId, float minVal, float maxVal) {
+          processorRef_.setExpressionMapping(paramId, minVal, maxVal);
+        },
+        [this]() { processorRef_.clearExpressionMapping(); },
+        [this](const juce::String& paramId) {
+          return processorRef_.hasExpressionMapping(paramId);
+        });
+
     // Safety mute overlay (hidden by default)
     safetyOverlay_ = std::make_unique<uds::SafetyMuteOverlay>();
     safetyOverlay_->onUnlock = [this] {
