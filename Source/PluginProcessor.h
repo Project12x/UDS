@@ -58,7 +58,7 @@ public:
   }
 
   void processBlock(juce::AudioBuffer<float>& buffer,
-                    juce::MidiBuffer& /*midiMessages*/) override {
+                    juce::MidiBuffer& midiMessages) override {
     juce::ScopedNoDenormals noDenormals;
 
     auto totalNumInputChannels = getTotalNumInputChannels();
@@ -67,6 +67,30 @@ public:
 
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
       buffer.clear(i, 0, numSamples);
+
+    // --- MIDI Expression Pedal Handling ---
+    // CC#11 (Expression) and CC#4 (Foot Controller) update expressionValue_
+    for (const auto metadata : midiMessages) {
+      auto m = metadata.getMessage();
+      if (m.isController()) {
+        int cc = m.getControllerNumber();
+        if (cc == 11 || cc == 4) { // Expression or Foot Pedal
+          expressionValue_.store(m.getControllerValue() / 127.0f);
+        }
+      }
+    }
+    // --- Apply Input Gain (Pre-Delay) ---
+    // Expression pedal modulates from -60dB (0) to parameter value (1)
+    float inputGainDb = parameters_.getRawParameterValue("inputGain")->load();
+    float exprValue = expressionValue_.load(); // 0-1 from MIDI CC
+    // When expression = 0, effective gain = -60dB (silent)
+    // When expression = 1, effective gain = inputGainDb (parameter value)
+    float effectiveInputGainDb = -60.0f + (inputGainDb + 60.0f) * exprValue;
+    if (effectiveInputGainDb > -59.9f) {
+      buffer.applyGain(juce::Decibels::decibelsToGain(effectiveInputGainDb));
+    } else {
+      buffer.applyGain(0.0f); // Effectively silent
+    }
 
     // Get I/O mode: 0=Auto, 1=Mono, 2=Mono→Stereo, 3=Stereo
     int ioMode =
@@ -256,6 +280,15 @@ public:
       // Mono: Copy processed channel 0 to channel 1
       buffer.copyFrom(1, 0, buffer, 0, 0, numSamples);
     }
+
+    // --- Apply Master Output (Post-Delay) ---
+    float masterOutputDb =
+        parameters_.getRawParameterValue("masterOutput")->load();
+    if (masterOutputDb > -59.9f) {
+      buffer.applyGain(juce::Decibels::decibelsToGain(masterOutputDb));
+    } else {
+      buffer.applyGain(0.0f);
+    }
   }
 
   juce::AudioProcessorEditor* createEditor() override;
@@ -345,15 +378,35 @@ private:
   std::array<std::atomic<float>, 8> bandLevels_{
       {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}};
 
+  // Expression pedal value (0-1 normalized, updated from MIDI CC)
+  std::atomic<float> expressionValue_{1.0f};
+
   static juce::AudioProcessorValueTreeState::ParameterLayout
   createParameterLayout() {
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
+
+    // Input Gain (Pre-Delay) - Essential for Volume Swells
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID{"inputGain", 1}, "Input Gain",
+        juce::NormalisableRange<float>(-60.0f, 6.0f, 0.1f), 0.0f,
+        juce::AudioParameterFloatAttributes().withLabel("dB")));
 
     // Global mix (wet level)
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID{"mix", 2}, "Mix",
         juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 50.0f,
         juce::AudioParameterFloatAttributes().withLabel("%")));
+
+    // Master Output (Post-Delay)
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID{"masterOutput", 1}, "Master Output",
+        juce::NormalisableRange<float>(-60.0f, 6.0f, 0.1f), 0.0f,
+        juce::AudioParameterFloatAttributes().withLabel("dB")));
+
+    // Expression Pedal Target (-1 = Input Gain default)
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID{"expressionTarget", 1}, "Expression Target",
+        juce::NormalisableRange<float>(-1.0f, 200.0f, 1.0f), -1.0f));
 
     // I/O Configuration mode
     // Auto: Use host-negotiated bus layout
