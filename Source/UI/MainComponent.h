@@ -58,6 +58,7 @@ public:
     addAndMakeVisible(mixLabel_);
 
     // Direct Level slider
+    dryLevelSlider_.setParameterId("dryLevel");
     dryLevelSlider_.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
     dryLevelSlider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 50, 16);
     dryLevelSlider_.setColour(juce::Slider::rotarySliderFillColourId,
@@ -75,6 +76,7 @@ public:
     addAndMakeVisible(dryLevelLabel_);
 
     // Direct Pan slider
+    dryPanSlider_.setParameterId("dryPan");
     dryPanSlider_.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
     dryPanSlider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 50, 16);
     dryPanSlider_.setColour(juce::Slider::rotarySliderFillColourId,
@@ -92,6 +94,7 @@ public:
     addAndMakeVisible(dryPanLabel_);
 
     // Master LFO Rate slider
+    masterLfoRateSlider_.setParameterId("masterLfoRate");
     masterLfoRateSlider_.setSliderStyle(
         juce::Slider::RotaryHorizontalVerticalDrag);
     masterLfoRateSlider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 50,
@@ -111,6 +114,7 @@ public:
     addAndMakeVisible(masterLfoRateLabel_);
 
     // Master LFO Depth slider
+    masterLfoDepthSlider_.setParameterId("masterLfoDepth");
     masterLfoDepthSlider_.setSliderStyle(
         juce::Slider::RotaryHorizontalVerticalDrag);
     masterLfoDepthSlider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 50,
@@ -447,8 +451,8 @@ private:
       mixAttachment_;
 
   // Direct signal controls
-  juce::Slider dryLevelSlider_;
-  juce::Slider dryPanSlider_;
+  ExpressionSlider dryLevelSlider_;
+  ExpressionSlider dryPanSlider_;
   juce::Label dryLevelLabel_;
   juce::Label dryPanLabel_;
   std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>
@@ -457,8 +461,8 @@ private:
       dryPanAttachment_;
 
   // Master LFO controls
-  juce::Slider masterLfoRateSlider_;
-  juce::Slider masterLfoDepthSlider_;
+  ExpressionSlider masterLfoRateSlider_;
+  ExpressionSlider masterLfoDepthSlider_;
   juce::ComboBox masterLfoWaveformCombo_;
   juce::Label masterLfoRateLabel_;
   juce::Label masterLfoDepthLabel_;
@@ -530,8 +534,12 @@ public:
       };
     };
 
-    // Wire all ExpressionSliders
-    wireSlider(mixSlider_, 0.0f, 100.0f);
+    // Wire all ExpressionSliders with their default ranges
+    wireSlider(mixSlider_, 0.0f, 100.0f);            // Mix: 0-100%
+    wireSlider(dryLevelSlider_, 0.0f, 100.0f);       // Direct Level: 0-100%
+    wireSlider(dryPanSlider_, -100.0f, 100.0f);      // Direct Pan: L100-R100
+    wireSlider(masterLfoRateSlider_, 0.0f, 10.0f);   // LFO Rate: 0-10 Hz
+    wireSlider(masterLfoDepthSlider_, 0.0f, 100.0f); // LFO Depth: 0-100%
   }
 };
 
