@@ -1,7 +1,17 @@
 # Build directories
 build/
+build-*/
 cmake-build-*/
 out/
+
+# Test/debug folders
+HarfBuzzTest*/
+*.txt
+!README.txt
+
+# AI assistant configs
+.claude/
+.gemini/
 
 # IDE
 .vs/
