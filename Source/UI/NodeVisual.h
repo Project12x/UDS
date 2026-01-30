@@ -1,8 +1,10 @@
 #pragma once
 
-#include <array>
 #include <juce_gui_basics/juce_gui_basics.h>
+
+#include <array>
 #include <vector>
+
 
 namespace uds {
 
@@ -90,7 +92,7 @@ struct Connection {
   int sourceId;
   int destId;
 
-  bool operator==(const Connection &other) const {
+  bool operator==(const Connection& other) const {
     return sourceId == other.sourceId && destId == other.destId;
   }
 };
@@ -120,8 +122,8 @@ struct NodeEditorTheme {
   juce::Colour cableSelected{0xffff6b6b};
   juce::Colour cableShadow{0x4d000000};
 
-  // Per-band cable colors (8 distinct colors)
-  std::array<juce::Colour, 8> bandColors = {{
+  // Per-band cable colors (12 distinct colors)
+  std::array<juce::Colour, 12> bandColors = {{
       juce::Colour(0xffff6b6b), // Band 1: Coral red
       juce::Colour(0xffffd93d), // Band 2: Yellow
       juce::Colour(0xff6bcb77), // Band 3: Green
@@ -130,6 +132,10 @@ struct NodeEditorTheme {
       juce::Colour(0xffff8fab), // Band 6: Pink
       juce::Colour(0xff00d9ff), // Band 7: Cyan
       juce::Colour(0xffffb347), // Band 8: Orange
+      juce::Colour(0xffff4444), // Band 9: Bright red
+      juce::Colour(0xff44ff44), // Band 10: Bright green
+      juce::Colour(0xff4444ff), // Band 11: Bright blue
+      juce::Colour(0xffff44ff), // Band 12: Magenta
   }};
 
   // Special nodes
@@ -143,7 +149,7 @@ struct NodeEditorTheme {
   float cableThickness = 3.0f;
 
   // Static band colors - shared by all UI components
-  static constexpr std::array<uint32_t, 8> kBandColorValues = {{
+  static constexpr std::array<uint32_t, 12> kBandColorValues = {{
       0xffff6b6b, // Band 1: Coral red
       0xffffd93d, // Band 2: Yellow
       0xff6bcb77, // Band 3: Green
@@ -152,17 +158,21 @@ struct NodeEditorTheme {
       0xffff8fab, // Band 6: Pink
       0xff00d9ff, // Band 7: Cyan
       0xffffb347, // Band 8: Orange
+      0xffff4444, // Band 9: Bright red
+      0xff44ff44, // Band 10: Bright green
+      0xff4444ff, // Band 11: Bright blue
+      0xffff44ff, // Band 12: Magenta
   }};
 
   static juce::Colour getBandColor(int bandIndex) {
-    if (bandIndex >= 0 && bandIndex < 8) {
+    if (bandIndex >= 0 && bandIndex < 12) {
       return juce::Colour(kBandColorValues[static_cast<size_t>(bandIndex)]);
     }
     return juce::Colour(0xff00b4d8); // Default cyan
   }
 
   juce::Colour getCableColorForSource(int sourceNodeId) const {
-    if (sourceNodeId >= 1 && sourceNodeId <= 8) {
+    if (sourceNodeId >= 1 && sourceNodeId <= 12) {
       return getBandColor(sourceNodeId - 1);
     }
     return cableDefault; // Input node uses default
