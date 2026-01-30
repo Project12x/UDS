@@ -32,7 +32,8 @@ public:
         [this]() { processorRef_.clearExpressionMapping(); },
         [this](const juce::String& paramId) {
           return processorRef_.hasExpressionMapping(paramId);
-        });
+        },
+        [this]() { return processorRef_.getExpressionValue(); });
 
     // Safety mute overlay (hidden by default)
     safetyOverlay_ = std::make_unique<uds::SafetyMuteOverlay>();

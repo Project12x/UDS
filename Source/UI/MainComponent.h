@@ -4,6 +4,7 @@
 #include "../Core/RoutingUndoManager.h"
 #include "BandParameterPanel.h"
 #include "ExpressionSlider.h"
+#include "ExpressionTrainDialog.h"
 #include "NodeEditorCanvas.h"
 #include "PresetBrowserPanel.h"
 #include "StandaloneMetronome.h"
@@ -505,17 +506,32 @@ public:
   void setExpressionCallbacks(
       std::function<void(const juce::String&, float, float)> onAssign,
       std::function<void()> onClear,
-      std::function<bool(const juce::String&)> hasMapping) {
-    // Wire up the Mix slider
-    mixSlider_.onAssignExpression = [onAssign](const juce::String& paramId) {
-      // Default range: 0-100 for mix
-      onAssign(paramId, 0.0f, 100.0f);
+      std::function<bool(const juce::String&)> hasMapping,
+      std::function<float()> getExprValue) {
+
+    // Helper to wire a slider with Train Range support
+    auto wireSlider = [&](ExpressionSlider& slider, float defaultMin,
+                          float defaultMax) {
+      slider.onAssignExpression = [onAssign, defaultMin,
+                                   defaultMax](const juce::String& paramId) {
+        onAssign(paramId, defaultMin, defaultMax);
+      };
+      slider.onClearExpression = onClear;
+      slider.isExpressionAssigned = [hasMapping, &slider]() {
+        return hasMapping(slider.getParameterId());
+      };
+      slider.onTrainRange = [this, onAssign,
+                             getExprValue](const juce::String& paramId) {
+        showExpressionTrainDialog(
+            this, getExprValue,
+            [onAssign, paramId](float minVal, float maxVal) {
+              onAssign(paramId, minVal, maxVal);
+            });
+      };
     };
-    mixSlider_.onClearExpression = onClear;
-    mixSlider_.isExpressionAssigned = [hasMapping, this]() {
-      return hasMapping(mixSlider_.getParameterId());
-    };
-    // TODO: Wire up other sliders (dryLevel, masterLfoRate, etc.)
+
+    // Wire all ExpressionSliders
+    wireSlider(mixSlider_, 0.0f, 100.0f);
   }
 };
 
