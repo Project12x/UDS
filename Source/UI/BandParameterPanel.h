@@ -1,5 +1,7 @@
 #pragma once
 
+#include "ExpressionSlider.h"
+#include "ExpressionTrainDialog.h"
 #include "NodeVisual.h"
 #include "Typography.h"
 
@@ -175,7 +177,8 @@ public:
     // =========================================
     setupSlider(attackSlider_, attackLabel_, "Attack");
     attackSlider_.setTextValueSuffix(" ms");
-    attackSlider_.setTooltip("Attack time for volume swell effect (0 = instant)");
+    attackSlider_.setTooltip(
+        "Attack time for volume swell effect (0 = instant)");
     attackAttachment_ =
         std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
             apvts_, prefix + "attack", attackSlider_);
@@ -273,6 +276,17 @@ public:
     // Initial visibility update
     updateSyncVisibility();
 
+    // Set expression slider parameter IDs
+    timeSlider_.setParameterId(prefix + "time");
+    feedbackSlider_.setParameterId(prefix + "feedback");
+    levelSlider_.setParameterId(prefix + "level");
+    panSlider_.setParameterId(prefix + "pan");
+    hiCutSlider_.setParameterId(prefix + "hiCut");
+    loCutSlider_.setParameterId(prefix + "loCut");
+    lfoRateSlider_.setParameterId(prefix + "lfoRate");
+    lfoDepthSlider_.setParameterId(prefix + "lfoDepth");
+    attackSlider_.setParameterId(prefix + "attack");
+
     // Start timer for LED decay
     startTimerHz(30);
   }
@@ -319,6 +333,45 @@ public:
   }
   bool isSolo() const { return soloButton_.getToggleState(); }
   bool isMute() const { return muteButton_.getToggleState(); }
+
+  // Wire expression pedal callbacks for all sliders in this band
+  void setExpressionCallbacks(
+      std::function<void(const juce::String&, float, float)> onAssign,
+      std::function<void()> onClear,
+      std::function<bool(const juce::String&)> hasMapping,
+      std::function<float()> getExprValue) {
+
+    auto wireSlider = [&](ExpressionSlider& slider, float defaultMin,
+                          float defaultMax) {
+      slider.onAssignExpression = [onAssign, defaultMin,
+                                   defaultMax](const juce::String& paramId) {
+        onAssign(paramId, defaultMin, defaultMax);
+      };
+      slider.onClearExpression = onClear;
+      slider.isExpressionAssigned = [hasMapping, &slider]() {
+        return hasMapping(slider.getParameterId());
+      };
+      slider.onTrainRange = [this, onAssign,
+                             getExprValue](const juce::String& paramId) {
+        showExpressionTrainDialog(
+            this, getExprValue,
+            [onAssign, paramId](float minVal, float maxVal) {
+              onAssign(paramId, minVal, maxVal);
+            });
+      };
+    };
+
+    // Wire all band sliders
+    wireSlider(timeSlider_, 0.0f, 2000.0f);      // Time: 0-2000ms
+    wireSlider(feedbackSlider_, 0.0f, 100.0f);   // Feedback: 0-100%
+    wireSlider(levelSlider_, -60.0f, 12.0f);     // Level: -60 to +12 dB
+    wireSlider(panSlider_, -100.0f, 100.0f);     // Pan: L100-R100
+    wireSlider(hiCutSlider_, 1000.0f, 20000.0f); // Hi-Cut: 1k-20kHz
+    wireSlider(loCutSlider_, 20.0f, 2000.0f);    // Lo-Cut: 20Hz-2kHz
+    wireSlider(lfoRateSlider_, 0.0f, 10.0f);     // LFO Rate: 0-10Hz
+    wireSlider(lfoDepthSlider_, 0.0f, 100.0f);   // LFO Depth: 0-100%
+    wireSlider(attackSlider_, 0.0f, 5000.0f);    // Attack: 0-5000ms
+  }
 
   void resized() override {
     auto bounds = getLocalBounds().reduced(5);
@@ -529,24 +582,24 @@ private:
   juce::TextButton soloButton_;
   juce::TextButton muteButton_;
 
-  juce::Slider timeSlider_, feedbackSlider_, levelSlider_, panSlider_;
+  ExpressionSlider timeSlider_, feedbackSlider_, levelSlider_, panSlider_;
   juce::Label timeLabel_, feedbackLabel_, levelLabel_, panLabel_;
   juce::ComboBox algorithmBox_;
   juce::Label algorithmLabel_;
 
   // Filter controls
-  juce::Slider hiCutSlider_, loCutSlider_;
+  ExpressionSlider hiCutSlider_, loCutSlider_;
   juce::Label hiCutLabel_, loCutLabel_;
 
   // LFO controls
-  juce::Slider lfoRateSlider_, lfoDepthSlider_;
+  ExpressionSlider lfoRateSlider_, lfoDepthSlider_;
   juce::Label lfoRateLabel_, lfoDepthLabel_;
   juce::ComboBox lfoWaveformBox_;
   juce::Label lfoWaveformLabel_;
   juce::TextButton phaseInvertButton_;
 
   // Attack envelope (volume swell)
-  juce::Slider attackSlider_;
+  ExpressionSlider attackSlider_;
   juce::Label attackLabel_;
 
   std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>

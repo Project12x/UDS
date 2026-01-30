@@ -540,6 +540,14 @@ public:
     wireSlider(dryPanSlider_, -100.0f, 100.0f);      // Direct Pan: L100-R100
     wireSlider(masterLfoRateSlider_, 0.0f, 10.0f);   // LFO Rate: 0-10 Hz
     wireSlider(masterLfoDepthSlider_, 0.0f, 100.0f); // LFO Depth: 0-100%
+
+    // Wire all band panels (9 sliders per band × 8 bands = 72 expression
+    // targets)
+    for (auto& panel : bandPanels_) {
+      if (panel)
+        panel->setExpressionCallbacks(onAssign, onClear, hasMapping,
+                                      getExprValue);
+    }
   }
 };
 
