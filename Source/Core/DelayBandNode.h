@@ -57,8 +57,8 @@ public:
   void prepare(double sampleRate, size_t /*maxBlockSize*/) {
     sampleRate_ = sampleRate;
 
-    // Max delay = 700ms + modulation headroom
-    const int maxDelaySamples = static_cast<int>(0.75 * sampleRate) + 1;
+    // Max delay = 10 seconds + 500ms modulation headroom
+    const int maxDelaySamples = static_cast<int>(10.5 * sampleRate) + 1;
 
     // Simple circular buffer
     bufferL_.resize(static_cast<size_t>(maxDelaySamples), 0.0f);

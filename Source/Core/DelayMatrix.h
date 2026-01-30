@@ -23,7 +23,8 @@ namespace uds {
  */
 class DelayMatrix {
 public:
-  static constexpr int NUM_BANDS = 8;
+  static constexpr int NUM_BANDS = 8;  // Current active bands
+  static constexpr int MAX_BANDS = 12; // Maximum allocatable bands
 
   DelayMatrix() = default;
 
@@ -31,9 +32,9 @@ public:
     sampleRate_ = sampleRate;
     maxBlockSize_ = maxBlockSize;
 
-    // Create bands
+    // Create bands (allocate MAX_BANDS for future expansion)
     bands_.clear();
-    for (int i = 0; i < NUM_BANDS; ++i) {
+    for (int i = 0; i < MAX_BANDS; ++i) {
       bands_.push_back(std::make_unique<DelayBandNode>());
       bands_.back()->prepare(sampleRate, maxBlockSize);
     }
