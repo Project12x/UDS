@@ -206,16 +206,23 @@ public:
     };
     addAndMakeVisible(redoButton_);
 
-    // Create band panels
-    for (int i = 0; i < 8; ++i) {
+    // Create band panels (12 total, 9-12 hidden initially)
+    for (int i = 0; i < 12; ++i) {
       bandPanels_[static_cast<size_t>(i)] =
           std::make_unique<BandParameterPanel>(apvts, i);
-      addAndMakeVisible(*bandPanels_[static_cast<size_t>(i)]);
+      if (i < 8) {
+        addAndMakeVisible(*bandPanels_[static_cast<size_t>(i)]);
+      } else {
+        addChildComponent(*bandPanels_[static_cast<size_t>(i)]); // Hidden
+      }
     }
 
     // Node editor canvas
     nodeEditor_.onRoutingWillChange = [this] { saveRoutingForUndo(); };
-    nodeEditor_.onRoutingChanged = [this] { syncRoutingToProcessor(); };
+    nodeEditor_.onRoutingChanged = [this] {
+      syncRoutingToProcessor();
+      updateBandPanelVisibility(); // Sync band panels with active bands
+    };
     addAndMakeVisible(nodeEditor_);
 
     // Initialize UI routing from processor's routing graph
@@ -226,6 +233,9 @@ public:
 
     // Start with bands view
     showBandsView();
+
+    // Initialize band panel visibility based on active bands
+    updateBandPanelVisibility();
   }
 
   ~MainComponent() override { presetManager_.onRoutingChanged = nullptr; }
@@ -302,17 +312,30 @@ public:
       // Routing editor fills remaining space
       nodeEditor_.setBounds(bounds);
     } else {
-      // Band panels in 2x4 grid
-      const int panelWidth = bounds.getWidth() / 4;
-      const int panelHeight = bounds.getHeight() / 2;
+      // Band panels in dynamic grid (only visible panels)
+      // Count visible panels
+      std::vector<BandParameterPanel*> visiblePanels;
+      for (int i = 0; i < 12; ++i) {
+        if (bandPanels_[static_cast<size_t>(i)] &&
+            bandPanels_[static_cast<size_t>(i)]->isVisible()) {
+          visiblePanels.push_back(bandPanels_[static_cast<size_t>(i)].get());
+        }
+      }
 
-      for (int row = 0; row < 2; ++row) {
-        for (int col = 0; col < 4; ++col) {
-          int index = row * 4 + col;
-          bandPanels_[static_cast<size_t>(index)]->setBounds(
-              bounds.getX() + col * panelWidth,
-              bounds.getY() + row * panelHeight, panelWidth - 5,
-              panelHeight - 5);
+      // Layout in grid: 4 columns, rows as needed
+      const int columns = 4;
+      const int rows =
+          (static_cast<int>(visiblePanels.size()) + columns - 1) / columns;
+      if (rows > 0) {
+        const int panelWidth = bounds.getWidth() / columns;
+        const int panelHeight = bounds.getHeight() / rows;
+
+        for (size_t i = 0; i < visiblePanels.size(); ++i) {
+          int row = static_cast<int>(i) / columns;
+          int col = static_cast<int>(i) % columns;
+          visiblePanels[i]->setBounds(bounds.getX() + col * panelWidth,
+                                      bounds.getY() + row * panelHeight,
+                                      panelWidth - 5, panelHeight - 5);
         }
       }
     }
@@ -372,9 +395,7 @@ private:
   void showBandsView() {
     showRoutingView_ = false;
     nodeEditor_.setVisible(false);
-    for (auto& panel : bandPanels_) {
-      panel->setVisible(true);
-    }
+    updateBandPanelVisibility(); // Only show active bands
     updateTabButtonColors();
     resized();
   }
@@ -419,6 +440,10 @@ private:
     for (const auto& conn : uiConnections) {
       routingGraph_.connect(conn.sourceId, conn.destId);
     }
+
+    // Also sync the active bands from UI to processor
+    routingGraph_.setActiveBands(
+        nodeEditor_.getRoutingGraph().getActiveBands());
   }
 
   /**
@@ -436,8 +461,15 @@ private:
       uiRouting.connect(conn.sourceId, conn.destId);
     }
 
+    // Also sync the active bands
+    uiRouting.setActiveBands(routingGraph_.getActiveBands());
+
     // Update the visual cables in the canvas
     nodeEditor_.rebuildCablesFromRouting();
+
+    // Update band visibility and panel visibility
+    nodeEditor_.updateBandVisibility();
+    updateBandPanelVisibility();
   }
 
   juce::AudioProcessorValueTreeState& apvts_;
@@ -489,7 +521,7 @@ private:
   RoutingUndoManager undoManager_;
   bool showRoutingView_ = false;
 
-  std::array<std::unique_ptr<BandParameterPanel>, 8> bandPanels_;
+  std::array<std::unique_ptr<BandParameterPanel>, 12> bandPanels_;
   NodeEditorCanvas nodeEditor_;
   PresetBrowserPanel presetBrowser_;
   StandaloneMetronome metronome_;
@@ -499,11 +531,24 @@ public:
   StandaloneMetronome& getMetronome() { return metronome_; }
 
   // Update band signal levels for LED activity indicators
-  void updateBandLevels(const std::array<float, 8>& levels) {
-    for (size_t i = 0; i < 8; ++i) {
+  void updateBandLevels(const std::array<float, 12>& levels) {
+    for (size_t i = 0; i < 12; ++i) {
       if (bandPanels_[i])
         bandPanels_[i]->setSignalLevel(levels[i]);
     }
+  }
+
+  // Update band panel visibility based on active bands in routing graph
+  void updateBandPanelVisibility() {
+    const auto& routingGraph = nodeEditor_.getRoutingGraph();
+    for (int i = 0; i < 12; ++i) {
+      int bandId = i + 1; // Band IDs are 1-based
+      bool isActive = routingGraph.isBandActive(bandId);
+      if (bandPanels_[static_cast<size_t>(i)]) {
+        bandPanels_[static_cast<size_t>(i)]->setVisible(isActive);
+      }
+    }
+    resized(); // Re-layout to fill gaps
   }
 
   // Wire expression pedal callbacks for all ExpressionSliders

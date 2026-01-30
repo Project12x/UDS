@@ -39,9 +39,9 @@ public:
     setupNodeCallbacks(inputNode_.get());
     addAndMakeVisible(inputNode_.get());
 
-    // Create 8 Band nodes in staggered layout (not a grid!)
+    // Create 12 Band nodes (9-12 hidden initially)
     // Positions form a flowing pattern between Input and Output
-    const std::array<juce::Point<int>, 8> bandPositions = {{
+    const std::array<juce::Point<int>, 12> bandPositions = {{
         {200, 60},  // Band 1 - top left
         {200, 180}, // Band 2 - middle left
         {200, 300}, // Band 3 - bottom left
@@ -50,9 +50,13 @@ public:
         {560, 60},  // Band 6 - top right
         {560, 180}, // Band 7 - middle right
         {560, 300}, // Band 8 - bottom right
+        {290, 400}, // Band 9 - extra row
+        {380, 360}, // Band 10 - extra row
+        {470, 400}, // Band 11 - extra row
+        {560, 420}, // Band 12 - extra row
     }};
 
-    for (int i = 0; i < kNumBands; ++i) {
+    for (int i = 0; i < 12; ++i) {
       auto band = std::make_unique<BandNodeComponent>(
           i + 1, "Band " + juce::String(i + 1),
           BandNodeComponent::NodeType::Band);
@@ -60,7 +64,12 @@ public:
       band->setTopLeftPosition(bandPositions[static_cast<size_t>(i)].x,
                                bandPositions[static_cast<size_t>(i)].y);
       setupNodeCallbacks(band.get());
-      addAndMakeVisible(band.get());
+      // Bands 1-8 visible, 9-12 hidden initially
+      if (i < 8) {
+        addAndMakeVisible(band.get());
+      } else {
+        addChildComponent(band.get()); // Hidden initially
+      }
       bandNodes_.push_back(std::move(band));
     }
 
@@ -132,23 +141,11 @@ public:
 
   void mouseDown(const juce::MouseEvent& event) override {
     if (event.mods.isRightButtonDown()) {
-      // Right-click: check if clicking on a cable to delete it
-      auto cableIndex = findCableAtPosition(event.getPosition().toFloat());
-      if (cableIndex >= 0) {
-        // Delete the cable
-        if (onRoutingWillChange)
-          onRoutingWillChange();
-        auto& cable = cables_[static_cast<size_t>(cableIndex)];
-        routingGraph_.disconnect(cable.sourceNodeId, cable.destNodeId);
-        updateCableVisuals();
-        if (onRoutingChanged)
-          onRoutingChanged();
-        repaint();
-      } else {
-        // Start panning
-        isPanning_ = true;
-        lastMousePos_ = event.getPosition();
-      }
+      // Right-click: prepare for possible drag (pan) or click (menu)
+      rightClickStartPos_ = event.getPosition();
+      rightClickOnCable_ = findCableAtPosition(event.getPosition().toFloat());
+      lastMousePos_ = event.getPosition();
+      rightClickDragged_ = false;
     } else {
       // Left-click: deselect all nodes
       deselectAll();
@@ -156,12 +153,31 @@ public:
   }
 
   void mouseDrag(const juce::MouseEvent& event) override {
-    if (isPanning_) {
+    if (event.mods.isRightButtonDown()) {
+      // Check if we've dragged enough to consider it a pan
+      auto dragDistance =
+          (event.getPosition() - rightClickStartPos_).getDistanceFromOrigin();
+      if (dragDistance > 5.0f) {
+        rightClickDragged_ = true;
+        isPanning_ = true;
+
+        auto delta = event.getPosition() - lastMousePos_;
+        panOffset_ += delta;
+        lastMousePos_ = event.getPosition();
+
+        // Move all nodes by delta
+        inputNode_->setTopLeftPosition(inputNode_->getPosition() + delta);
+        outputNode_->setTopLeftPosition(outputNode_->getPosition() + delta);
+        for (auto& band : bandNodes_) {
+          band->setTopLeftPosition(band->getPosition() + delta);
+        }
+        repaint();
+      }
+    } else if (isPanning_) {
       auto delta = event.getPosition() - lastMousePos_;
       panOffset_ += delta;
       lastMousePos_ = event.getPosition();
 
-      // Move all nodes by delta
       inputNode_->setTopLeftPosition(inputNode_->getPosition() + delta);
       outputNode_->setTopLeftPosition(outputNode_->getPosition() + delta);
       for (auto& band : bandNodes_) {
@@ -175,8 +191,28 @@ public:
   }
 
   void mouseUp(const juce::MouseEvent& event) override {
-    if (isPanning_) {
-      isPanning_ = false;
+    if (event.mods.isRightButtonDown() || isPanning_) {
+      if (isPanning_) {
+        isPanning_ = false;
+      } else if (!rightClickDragged_) {
+        // Single right-click (no drag) - handle cable delete or show menu
+        if (rightClickOnCable_ >= 0) {
+          // Delete the cable
+          if (onRoutingWillChange)
+            onRoutingWillChange();
+          auto& cable = cables_[static_cast<size_t>(rightClickOnCable_)];
+          routingGraph_.disconnect(cable.sourceNodeId, cable.destNodeId);
+          updateCableVisuals();
+          if (onRoutingChanged)
+            onRoutingChanged();
+          repaint();
+        } else {
+          // Show context menu for band management
+          showBandContextMenu(event.getScreenPosition());
+        }
+      }
+      rightClickDragged_ = false;
+      rightClickOnCable_ = -1;
     } else if (dragCable_.active) {
       // Check if we're over a valid port
       auto targetNode = findNodeAtPort(event.getPosition());
@@ -258,6 +294,102 @@ public:
     }
   }
 
+  /**
+   * @brief Show context menu for band management
+   */
+  void showBandContextMenu(juce::Point<int> screenPos) {
+    juce::PopupMenu menu;
+
+    int activeBandCount = routingGraph_.getActiveBandCount();
+    auto activeBands = routingGraph_.getActiveBands();
+
+    // Add band submenu (offer inactive bands)
+    juce::PopupMenu addMenu;
+    int addMenuItemId = 1000;
+    for (int i = 1; i <= 12; ++i) {
+      if (!routingGraph_.isBandActive(i)) {
+        addMenu.addItem(addMenuItemId + i, "Band " + juce::String(i));
+      }
+    }
+    if (addMenu.getNumItems() > 0) {
+      menu.addSubMenu("Add Band", addMenu);
+    }
+
+    // Remove band submenu (offer active bands except if only 1 left)
+    juce::PopupMenu removeMenu;
+    int removeMenuItemId = 2000;
+    if (activeBandCount > 1) {
+      for (int bandId : activeBands) {
+        removeMenu.addItem(removeMenuItemId + bandId,
+                           "Band " + juce::String(bandId));
+      }
+      menu.addSubMenu("Remove Band", removeMenu);
+    }
+
+    menu.addSeparator();
+    menu.addItem(100, "Parallel Routing");
+    menu.addItem(101, "Series Routing");
+    menu.addItem(102, "Clear Routing");
+
+    menu.addSeparator();
+    menu.addItem(999, juce::String(activeBandCount) + "/12 Bands Active", false,
+                 false);
+
+    menu.showMenuAsync(
+        juce::PopupMenu::Options().withTargetScreenArea(
+            {screenPos.x, screenPos.y, 1, 1}),
+        [this](int result) {
+          if (result == 0)
+            return; // Cancelled
+
+          if (result >= 1000 && result < 2000) {
+            // Add band
+            int bandId = result - 1000;
+            if (routingGraph_.addBand(bandId)) {
+              if (onRoutingWillChange)
+                onRoutingWillChange();
+              // Connect new band to graph (Input -> Band -> Output by default)
+              routingGraph_.connect(static_cast<int>(NodeId::Input), bandId);
+              routingGraph_.connect(bandId, static_cast<int>(NodeId::Output));
+              updateBandVisibility();
+              updateCableVisuals();
+              if (onRoutingChanged)
+                onRoutingChanged();
+              repaint();
+            }
+          } else if (result >= 2000 && result < 3000) {
+            // Remove band
+            int bandId = result - 2000;
+            if (routingGraph_.removeBand(bandId)) {
+              if (onRoutingWillChange)
+                onRoutingWillChange();
+              updateBandVisibility();
+              updateCableVisuals();
+              if (onRoutingChanged)
+                onRoutingChanged();
+              repaint();
+            }
+          } else if (result == 100) {
+            setParallelRouting();
+          } else if (result == 101) {
+            setSeriesRouting();
+          } else if (result == 102) {
+            clearRouting();
+          }
+        });
+  }
+
+  /**
+   * @brief Update visibility of band nodes based on active set
+   */
+  void updateBandVisibility() {
+    for (size_t i = 0; i < bandNodes_.size(); ++i) {
+      int bandId = static_cast<int>(i) + 1; // Band IDs are 1-based
+      bool isActive = routingGraph_.isBandActive(bandId);
+      bandNodes_[i]->setVisible(isActive);
+    }
+  }
+
 private:
   NodeEditorTheme theme_;
   RoutingGraph routingGraph_;
@@ -269,6 +401,11 @@ private:
   bool isPanning_ = false;
   juce::Point<int> lastMousePos_;
   juce::Point<int> panOffset_{0, 0};
+
+  // Right-click state (pan vs menu)
+  juce::Point<int> rightClickStartPos_;
+  bool rightClickDragged_ = false;
+  int rightClickOnCable_ = -1;
 
   std::unique_ptr<BandNodeComponent> inputNode_;
   std::vector<std::unique_ptr<BandNodeComponent>> bandNodes_;
@@ -351,7 +488,8 @@ private:
       return inputNode_.get();
     if (nodeId == static_cast<int>(NodeId::Output))
       return outputNode_.get();
-    if (nodeId >= 1 && nodeId <= kNumBands) {
+    // Bands 1-12 (array index 0-11)
+    if (nodeId >= 1 && nodeId <= kMaxBands) {
       return bandNodes_[static_cast<size_t>(nodeId - 1)].get();
     }
     return nullptr;
@@ -404,22 +542,21 @@ private:
     cables_.clear();
 
     for (const auto& conn : routingGraph_.getConnections()) {
+      // Only draw cables when both nodes exist and are visible
+      auto* srcNode = findNodeById(conn.sourceId);
+      auto* dstNode = findNodeById(conn.destId);
+
+      if (!srcNode || !dstNode)
+        continue;
+      if (!srcNode->isVisible() || !dstNode->isVisible())
+        continue;
+
       CableVisual cable;
       cable.sourceNodeId = conn.sourceId;
       cable.destNodeId = conn.destId;
-      // Use per-band color based on source node
       cable.color = theme_.getCableColorForSource(conn.sourceId);
-
-      // Get port positions
-      if (auto* srcNode = findNodeById(conn.sourceId)) {
-        auto pos = srcNode->getOutputPortPosition();
-        cable.start = pos.toFloat();
-      }
-      if (auto* dstNode = findNodeById(conn.destId)) {
-        auto pos = dstNode->getInputPortPosition();
-        cable.end = pos.toFloat();
-      }
-
+      cable.start = srcNode->getOutputPortPosition().toFloat();
+      cable.end = dstNode->getInputPortPosition().toFloat();
       cable.updateControlPoints();
       cables_.push_back(cable);
     }

@@ -74,8 +74,8 @@ private:
       processorRef_.setInternalBpm(metronomeBpm);
 
       // Poll band levels for activity indicators
-      std::array<float, 8> levels;
-      for (int i = 0; i < 8; ++i) {
+      std::array<float, 12> levels;
+      for (int i = 0; i < 12; ++i) {
         levels[static_cast<size_t>(i)] = processorRef_.getBandLevel(i);
       }
       mainComponent_->updateBandLevels(levels);

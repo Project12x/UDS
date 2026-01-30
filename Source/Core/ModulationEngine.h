@@ -12,7 +12,7 @@ namespace uds {
 /**
  * @brief Centralized Engine for generating modulation signals
  *
- * Manages 8 Band Modulators + 1 Master Modulator.
+ * Manages 12 Band Modulators + 1 Master Modulator.
  * Generates modulation buffers block-by-block for efficient processing.
  */
 class ModulationEngine {
@@ -21,8 +21,8 @@ public:
 
   void prepare(double sampleRate, size_t maxBlockSize) {
     // Output buffers
-    // 8 Channels for bands
-    localModBuffer_.setSize(8, static_cast<int>(maxBlockSize));
+    // 12 Channels for bands
+    localModBuffer_.setSize(12, static_cast<int>(maxBlockSize));
     // 1 Channel for master
     masterModBuffer_.setSize(1, static_cast<int>(maxBlockSize));
 
@@ -46,7 +46,7 @@ public:
   // Parameter setters
   void setBandParams(int bandIndex, ModulationType type, float rate,
                      float depth) {
-    if (bandIndex >= 0 && bandIndex < 8) {
+    if (bandIndex >= 0 && bandIndex < 12) {
       bandModulators_[static_cast<size_t>(bandIndex)].setParams(type, rate,
                                                                 depth);
     }
@@ -70,7 +70,7 @@ public:
     }
 
     // 2. Process Band Modulators
-    for (int ch = 0; ch < 8; ++ch) {
+    for (int ch = 0; ch < 12; ++ch) {
       auto* bandWrite = localModBuffer_.getWritePointer(ch);
       auto& modulator = bandModulators_[static_cast<size_t>(ch)];
 
@@ -89,7 +89,7 @@ public:
   }
 
 private:
-  std::array<GenerativeModulator, 8> bandModulators_;
+  std::array<GenerativeModulator, 12> bandModulators_;
   GenerativeModulator masterModulator_;
 
   // Block Processing Buffers

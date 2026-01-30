@@ -10,6 +10,7 @@ namespace uds {
 
 /**
  * @brief Node IDs for the routing graph
+ * Input = 0, Bands = 1-12, Output = 13
  */
 enum class NodeId : int {
   Input = 0,
@@ -21,11 +22,16 @@ enum class NodeId : int {
   Band6 = 6,
   Band7 = 7,
   Band8 = 8,
-  Output = 9
+  Band9 = 9,
+  Band10 = 10,
+  Band11 = 11,
+  Band12 = 12,
+  Output = 13
 };
 
-constexpr int kNumBands = 8;
-constexpr int kNumNodes = 10; // Input + 8 bands + Output
+constexpr int kNumBands = 8;  // Default active bands
+constexpr int kMaxBands = 12; // Maximum bands supported
+constexpr int kNumNodes = 14; // Input (0) + 12 bands (1-12) + Output (13)
 
 /**
  * @brief Visual representation of a node in the routing editor

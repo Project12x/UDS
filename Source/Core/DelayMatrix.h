@@ -351,16 +351,16 @@ private:
   SafetyLimiter limiter_;
   ModulationEngine modulationEngine_; // The new engine
 
-  // Node buffers (Input + 8 Bands + Output)
-  static constexpr int kNumNodes = 10;
+  // Node buffers (Input + 12 Bands + Output)
+  static constexpr int kNumNodes = 14;
   std::unordered_map<int, juce::AudioBuffer<float>> nodeBuffers_;
 
   double sampleRate_ = 44100.0;
   size_t maxBlockSize_ = 512;
   bool prepared_ = false;
 
-  std::array<float, 8> bandLevels_{
-      {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}};
+  std::array<float, 12> bandLevels_{
+      {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}};
 };
 
 } // namespace uds
