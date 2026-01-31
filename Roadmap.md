@@ -150,7 +150,7 @@
 - [ ] Active band tracking in RoutingGraph
 - [ ] Right-click context menu: add/remove bands
 - [ ] Band panel visibility (show/hide based on active count)
-- [ ] Display "8/12 Bands" count on main screen
+- [x] Display "8/12 Bands" count on main screen
 - [ ] Preset serialization for active band list
 
 ---

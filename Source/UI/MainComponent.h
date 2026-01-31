@@ -168,7 +168,16 @@ public:
 
     routingTabButton_.setButtonText("Routing");
     routingTabButton_.onClick = [this] { showRoutingView(); };
+    routingTabButton_.setButtonText("Routing");
+    routingTabButton_.onClick = [this] { showRoutingView(); };
     addAndMakeVisible(routingTabButton_);
+
+    // Band Count Label (e.g. "8/12 Active")
+    bandCountLabel_.setJustificationType(juce::Justification::centredLeft);
+    bandCountLabel_.setColour(juce::Label::textColourId,
+                              juce::Colours::white.withAlpha(0.6f));
+    bandCountLabel_.setFont(juce::FontOptions(12.0f));
+    addAndMakeVisible(bandCountLabel_);
 
     // Routing preset buttons
     parallelButton_.setButtonText("Parallel");
@@ -281,8 +290,11 @@ public:
 
     // Tab buttons on left
     auto tabArea = headerRow.removeFromLeft(200);
-    bandsTabButton_.setBounds(tabArea.removeFromLeft(100));
-    routingTabButton_.setBounds(tabArea.removeFromLeft(100));
+    bandsTabButton_.setBounds(tabArea.removeFromLeft(80)); // Slightly smaller
+    routingTabButton_.setBounds(tabArea.removeFromLeft(80));
+
+    // Band Count Label next to tabs
+    bandCountLabel_.setBounds(headerRow.removeFromLeft(80).reduced(5, 12));
 
     // Preset buttons (visible only in routing view)
     // Preset buttons (visible only in routing view)
@@ -518,6 +530,7 @@ private:
   juce::TextButton seriesButton_;
   juce::TextButton undoButton_;
   juce::TextButton redoButton_;
+  juce::Label bandCountLabel_;
   RoutingUndoManager undoManager_;
   bool showRoutingView_ = false;
 
@@ -541,13 +554,21 @@ public:
   // Update band panel visibility based on active bands in routing graph
   void updateBandPanelVisibility() {
     const auto& routingGraph = nodeEditor_.getRoutingGraph();
+    int activeCount = 0;
     for (int i = 0; i < 12; ++i) {
       int bandId = i + 1; // Band IDs are 1-based
       bool isActive = routingGraph.isBandActive(bandId);
+      if (isActive)
+        activeCount++;
       if (bandPanels_[static_cast<size_t>(i)]) {
         bandPanels_[static_cast<size_t>(i)]->setVisible(isActive);
       }
     }
+
+    // Update count label
+    bandCountLabel_.setText(juce::String(activeCount) + "/12 Active",
+                            juce::dontSendNotification);
+
     resized(); // Re-layout to fill gaps
   }
 
